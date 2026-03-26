@@ -5,6 +5,7 @@ import { PatientHeader } from "@/components/patient/patient-header";
 import { TabNav } from "@/components/patient/tab-nav";
 import { DoctorActions } from "@/components/patient/doctor-actions";
 import { VitalsTab } from "@/components/patient/vitals-tab";
+import { MedsTab } from "@/components/patient/meds-tab";
 
 export default async function PatientDetailPage(props: {
   params: Promise<{ admissionId: string }>;
@@ -29,7 +30,10 @@ export default async function PatientDetailPage(props: {
       },
       treatmentPlans: {
         include: {
-          administrations: { orderBy: { scheduledTime: "asc" } },
+          administrations: {
+            orderBy: { scheduledTime: "asc" },
+            include: { administeredBy: { select: { name: true } } },
+          },
           createdBy: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -110,7 +114,12 @@ export default async function PatientDetailPage(props: {
           <VitalsTab admissionId={admissionId} vitals={admission.vitalRecords} />
         )}
         {tab === "meds" && (
-          <div className="text-sm text-gray-500">Meds content — coming in Task 12</div>
+          <MedsTab
+            admissionId={admissionId}
+            treatmentPlans={admission.treatmentPlans}
+            fluidTherapies={admission.fluidTherapies}
+            isDoctor={isDoctor}
+          />
         )}
         {tab === "food" && (
           <div className="text-sm text-gray-500">Food content — coming in Task 14</div>

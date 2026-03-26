@@ -6,6 +6,9 @@ import { TabNav } from "@/components/patient/tab-nav";
 import { DoctorActions } from "@/components/patient/doctor-actions";
 import { VitalsTab } from "@/components/patient/vitals-tab";
 import { MedsTab } from "@/components/patient/meds-tab";
+import { FoodTab } from "@/components/patient/food-tab";
+import { NotesTab } from "@/components/patient/notes-tab";
+import { LabsTab } from "@/components/patient/labs-tab";
 
 export default async function PatientDetailPage(props: {
   params: Promise<{ admissionId: string }>;
@@ -122,13 +125,13 @@ export default async function PatientDetailPage(props: {
           />
         )}
         {tab === "food" && (
-          <div className="text-sm text-gray-500">Food content — coming in Task 14</div>
+          <FoodTab admissionId={admissionId} dietPlans={admission.dietPlans} isDoctor={session?.role === "DOCTOR"} />
         )}
         {tab === "notes" && (
-          <div className="text-sm text-gray-500">Notes content — coming in Task 15</div>
+          <NotesTab admissionId={admissionId} notes={admission.clinicalNotes} isDoctor={isDoctor} />
         )}
         {tab === "labs" && (
-          <div className="text-sm text-gray-500">Labs content — coming in Task 16</div>
+          <LabsTab admissionId={admissionId} labResults={admission.labResults} isDoctor={isDoctor} />
         )}
         {tab === "bath" && (
           <div className="text-sm text-gray-500">Bath content — coming in Task 17</div>

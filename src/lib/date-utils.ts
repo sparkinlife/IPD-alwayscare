@@ -1,21 +1,22 @@
-import { format, formatDistanceToNow, differenceInDays, differenceInMinutes } from "date-fns";
+import { formatDistanceToNow, differenceInDays, differenceInMinutes } from "date-fns";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 
-const IST_OFFSET = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+const IST_ZONE = "Asia/Kolkata";
 
 export function toIST(date: Date): Date {
-  return new Date(date.getTime() + IST_OFFSET);
+  return toZonedTime(date, IST_ZONE);
 }
 
 export function formatIST(date: Date, formatStr: string = "dd/MM/yyyy"): string {
-  return format(toIST(date), formatStr);
+  return formatInTimeZone(date, IST_ZONE, formatStr);
 }
 
 export function formatTimeIST(date: Date): string {
-  return format(toIST(date), "HH:mm");
+  return formatInTimeZone(date, IST_ZONE, "HH:mm");
 }
 
 export function formatDateTimeIST(date: Date): string {
-  return format(toIST(date), "dd/MM/yyyy HH:mm");
+  return formatInTimeZone(date, IST_ZONE, "dd/MM/yyyy HH:mm");
 }
 
 export function formatRelative(date: Date): string {
@@ -44,12 +45,12 @@ export function isBathDue(lastBathOrAdmission: Date, dueDays: number = 5): {
 }
 
 export function getTodayIST(): string {
-  return format(toIST(new Date()), "yyyy-MM-dd");
+  return formatInTimeZone(new Date(), IST_ZONE, "yyyy-MM-dd");
 }
 
 export function isOverdueByMinutes(scheduledTime: string, minutes: number = 30): boolean {
   const now = toIST(new Date());
-  const today = format(now, "yyyy-MM-dd");
-  const scheduled = new Date(`${today}T${scheduledTime}:00`);
+  const todayStr = formatInTimeZone(new Date(), IST_ZONE, "yyyy-MM-dd");
+  const scheduled = new Date(`${todayStr}T${scheduledTime}:00`);
   return differenceInMinutes(now, scheduled) > minutes;
 }

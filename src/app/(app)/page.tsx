@@ -30,6 +30,7 @@ export default async function DashboardPage({
     where: {
       status: { in: ["ACTIVE", "REGISTERED"] },
       deletedAt: null,
+      patient: { deletedAt: null },
     },
     include: {
       patient: true,

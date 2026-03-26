@@ -399,6 +399,131 @@ export async function updateAdmission(admissionId: string, formData: FormData) {
   }
 }
 
+export async function archivePatient(admissionId: string) {
+  try {
+    await requireDoctor();
+
+    const admission = await db.admission.findUnique({
+      where: { id: admissionId },
+      select: { id: true, patientId: true, deletedAt: true },
+    });
+    if (!admission || admission.deletedAt) return { error: "Admission not found" };
+
+    // Soft-delete admission and patient
+    await db.admission.update({
+      where: { id: admissionId },
+      data: { deletedAt: new Date() },
+    });
+    await db.patient.update({
+      where: { id: admission.patientId },
+      data: { deletedAt: new Date() },
+    });
+
+    // Deactivate all active plans for this admission
+    await db.treatmentPlan.updateMany({ where: { admissionId, isActive: true }, data: { isActive: false } });
+    await db.dietPlan.updateMany({ where: { admissionId, isActive: true }, data: { isActive: false } });
+    await db.fluidTherapy.updateMany({ where: { admissionId, isActive: true }, data: { isActive: false } });
+
+    revalidatePath("/");
+    revalidatePath("/archive");
+    redirect("/");
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function permanentlyDeletePatient(patientId: string) {
+  try {
+    const session = await requireAuth();
+    if (session.role !== "ADMIN") return { error: "Forbidden: Admin only" };
+
+    const patient = await db.patient.findUnique({
+      where: { id: patientId },
+      select: { id: true, admissions: { select: { id: true } } },
+    });
+    if (!patient) return { error: "Patient not found" };
+
+    const admissionIds = patient.admissions.map((a) => a.id);
+
+    await db.$transaction(async (tx) => {
+      // 1. DisinfectionLog (via IsolationProtocol)
+      const isolationProtocols = await tx.isolationProtocol.findMany({
+        where: { admissionId: { in: admissionIds } },
+        select: { id: true },
+      });
+      const isolationIds = isolationProtocols.map((p) => p.id);
+      await tx.disinfectionLog.deleteMany({ where: { isolationProtocolId: { in: isolationIds } } });
+
+      // 2. IsolationProtocol
+      await tx.isolationProtocol.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 3. MedicationAdministration (via TreatmentPlan)
+      const treatmentPlans = await tx.treatmentPlan.findMany({
+        where: { admissionId: { in: admissionIds } },
+        select: { id: true },
+      });
+      const treatmentPlanIds = treatmentPlans.map((p) => p.id);
+      await tx.medicationAdministration.deleteMany({ where: { treatmentPlanId: { in: treatmentPlanIds } } });
+
+      // 4. TreatmentPlan
+      await tx.treatmentPlan.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 5. FluidRateChange (via FluidTherapy)
+      const fluidTherapies = await tx.fluidTherapy.findMany({
+        where: { admissionId: { in: admissionIds } },
+        select: { id: true },
+      });
+      const fluidTherapyIds = fluidTherapies.map((f) => f.id);
+      await tx.fluidRateChange.deleteMany({ where: { fluidTherapyId: { in: fluidTherapyIds } } });
+
+      // 6. FluidTherapy
+      await tx.fluidTherapy.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 7. FeedingLog (via FeedingSchedule via DietPlan)
+      const dietPlans = await tx.dietPlan.findMany({
+        where: { admissionId: { in: admissionIds } },
+        select: { id: true },
+      });
+      const dietPlanIds = dietPlans.map((d) => d.id);
+      const feedingSchedules = await tx.feedingSchedule.findMany({
+        where: { dietPlanId: { in: dietPlanIds } },
+        select: { id: true },
+      });
+      const feedingScheduleIds = feedingSchedules.map((s) => s.id);
+      await tx.feedingLog.deleteMany({ where: { feedingScheduleId: { in: feedingScheduleIds } } });
+
+      // 8. FeedingSchedule
+      await tx.feedingSchedule.deleteMany({ where: { dietPlanId: { in: dietPlanIds } } });
+
+      // 9. DietPlan
+      await tx.dietPlan.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 10. VitalRecord
+      await tx.vitalRecord.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 11. ClinicalNote
+      await tx.clinicalNote.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 12. BathLog
+      await tx.bathLog.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 13. LabResult
+      await tx.labResult.deleteMany({ where: { admissionId: { in: admissionIds } } });
+
+      // 14. Admission
+      await tx.admission.deleteMany({ where: { patientId } });
+
+      // 15. Patient
+      await tx.patient.delete({ where: { id: patientId } });
+    });
+
+    revalidatePath("/archive");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
 export async function dischargePatient(admissionId: string, formData: FormData) {
   try {
     const session = await requireDoctor();

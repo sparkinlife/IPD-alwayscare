@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, AlertTriangle, User } from "lucide-react";
+import { Home, Calendar, AlertTriangle, Archive, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/", label: "Home", icon: Home },
   { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/isolation", label: "Isolation", icon: AlertTriangle },
+  { href: "/archive", label: "Archive", icon: Archive },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

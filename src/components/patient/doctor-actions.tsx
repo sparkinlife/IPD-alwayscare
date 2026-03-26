@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,8 +28,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DischargeForm } from "./discharge-form";
-import { updateCondition, transferWard } from "@/actions/admissions";
-import { Activity, ArrowRightLeft } from "lucide-react";
+import { updateCondition, transferWard, archivePatient } from "@/actions/admissions";
+import { Activity, ArrowRightLeft, Archive } from "lucide-react";
 
 interface AvailableCage {
   ward: string;
@@ -51,6 +53,10 @@ export function DoctorActions({
   const [conditionOpen, setConditionOpen] = useState(false);
   const [newCondition, setNewCondition] = useState(currentCondition ?? "");
   const [conditionLoading, setConditionLoading] = useState(false);
+
+  // Archive state
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
 
   // Transfer Ward state
   const [transferOpen, setTransferOpen] = useState(false);
@@ -84,6 +90,19 @@ export function DoctorActions({
     } else {
       toast.success("Patient transferred");
       setTransferOpen(false);
+    }
+  }
+
+  async function handleArchive() {
+    setArchiveLoading(true);
+    try {
+      await archivePatient(admissionId);
+    } catch (err) {
+      if (err && typeof err === "object" && "digest" in err) throw err;
+      toast.error("Failed to archive patient");
+    } finally {
+      setArchiveLoading(false);
+      setArchiveOpen(false);
     }
   }
 
@@ -212,6 +231,42 @@ export function DoctorActions({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive */}
+      <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <DialogTrigger
+          render={
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700" />
+          }
+        >
+          <Archive className="w-4 h-4" />
+          <span className="text-xs">Archive</span>
+        </DialogTrigger>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Archive this patient?</DialogTitle>
+            <DialogDescription>
+              They will be removed from the dashboard but records are preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setArchiveOpen(false)}
+              disabled={archiveLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleArchive}
+              disabled={archiveLoading}
+            >
+              {archiveLoading ? "Archiving..." : "Archive"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

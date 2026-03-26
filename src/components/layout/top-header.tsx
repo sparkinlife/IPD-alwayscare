@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
-import { Home, Calendar, AlertTriangle, User, Settings } from "lucide-react";
+import { Home, Calendar, AlertTriangle, Archive, User, Settings } from "lucide-react";
 
 export async function TopHeader() {
   const session = await getSession();
@@ -27,6 +27,10 @@ export async function TopHeader() {
         <Link href="/isolation" className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
           <AlertTriangle className="size-4" />
           Isolation
+        </Link>
+        <Link href="/archive" className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+          <Archive className="size-4" />
+          Archive
         </Link>
         {isAdminOrDoctor && (
           <Link href="/admin" className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">

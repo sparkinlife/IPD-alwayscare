@@ -16,8 +16,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { createDietPlan } from "@/actions/feeding";
+import { createDietPlan, deleteFeeding } from "@/actions/feeding";
 import { FeedingLogSheet } from "./feeding-log-sheet";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -428,18 +429,20 @@ function FeedingRow({
 
 // ─── Feeding History ──────────────────────────────────────────────────────────
 
-function FeedingHistory({ dietPlans }: { dietPlans: DietPlan[] }) {
+function FeedingHistory({ dietPlans, isDoctor }: { dietPlans: DietPlan[]; isDoctor: boolean }) {
   const [open, setOpen] = useState(false);
 
   const today = getTodayIST();
 
   // Collect all logs from all diet plans, excluding today
   const pastLogs: Array<{
+    id: string;
     date: string;
     foodType: string;
     scheduledTime: string;
     status: string;
     amountConsumed: string | null;
+    notes: string | null;
   }> = [];
 
   for (const plan of dietPlans) {
@@ -457,15 +460,27 @@ function FeedingHistory({ dietPlans }: { dietPlans: DietPlan[] }) {
           const cutoffStr = cutoff.toISOString().slice(0, 10);
           if (logDate >= cutoffStr) {
             pastLogs.push({
+              id: log.id,
               date: logDate,
               foodType: schedule.foodType,
               scheduledTime: schedule.scheduledTime,
               status: log.status,
               amountConsumed: log.amountConsumed,
+              notes: log.notes,
             });
           }
         }
       }
+    }
+  }
+
+  async function handleDeleteFeeding(logId: string) {
+    try {
+      const result = await deleteFeeding(logId);
+      if (result && "error" in result && result.error) toast.error(result.error);
+      else toast.success("Feeding log deleted");
+    } catch {
+      toast.error("Failed to delete feeding log");
     }
   }
 
@@ -493,11 +508,11 @@ function FeedingHistory({ dietPlans }: { dietPlans: DietPlan[] }) {
 
       {open && (
         <div className="mt-3 space-y-1">
-          {pastLogs.map((log, i) => {
+          {pastLogs.map((log) => {
             const config = STATUS_CONFIG[log.status] ?? STATUS_CONFIG.PENDING;
             return (
               <div
-                key={i}
+                key={log.id}
                 className={cn(
                   "flex items-center gap-3 rounded-lg border px-3 py-2",
                   config.row
@@ -513,6 +528,12 @@ function FeedingHistory({ dietPlans }: { dietPlans: DietPlan[] }) {
                 <span className={cn("text-xs font-medium", config.text)}>
                   {config.label}
                 </span>
+                {isDoctor && (
+                  <ActionsMenu
+                    onDelete={() => handleDeleteFeeding(log.id)}
+                    deleteConfirmMessage="Delete this feeding log? This action cannot be undone."
+                  />
+                )}
               </div>
             );
           })}
@@ -607,7 +628,7 @@ export function FoodTab({ admissionId, dietPlans, isDoctor }: FoodTabProps) {
       )}
 
       {/* Feeding history (collapsible) */}
-      <FeedingHistory dietPlans={dietPlans} />
+      <FeedingHistory dietPlans={dietPlans} isDoctor={isDoctor} />
     </div>
   );
 }

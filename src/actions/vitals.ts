@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireDoctor } from "@/lib/auth";
 
 function handleActionError(error: unknown): { error: string } {
   if (error && typeof error === "object" && "digest" in error) throw error;
@@ -54,6 +54,73 @@ export async function recordVitals(admissionId: string, formData: FormData) {
 
     await db.vitalRecord.create({ data });
     revalidatePath(`/patients/${admissionId}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function updateVitals(vitalId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const vital = await db.vitalRecord.findUnique({
+      where: { id: vitalId },
+      select: { id: true, admissionId: true },
+    });
+    if (!vital) return { error: "Vital record not found" };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = {};
+
+    const fields = [
+      { name: "temperature", parse: parseFloat },
+      { name: "heartRate", parse: parseInt },
+      { name: "respRate", parse: parseInt },
+      { name: "painScore", parse: parseInt },
+      { name: "weight", parse: parseFloat },
+      { name: "spo2", parse: parseFloat },
+      { name: "capillaryRefillTime", parse: parseFloat },
+    ];
+
+    for (const { name, parse } of fields) {
+      const val = formData.get(name) as string;
+      if (val !== null && val !== undefined && val !== "") {
+        const parsed = parse(val);
+        if (!isNaN(parsed)) data[name] = parsed;
+        else data[name] = null;
+      } else {
+        data[name] = null;
+      }
+    }
+
+    const bp = formData.get("bloodPressure") as string;
+    data.bloodPressure = bp || null;
+    const mmc = formData.get("mucousMembraneColor") as string;
+    data.mucousMembraneColor = mmc || null;
+    const notes = formData.get("notes") as string;
+    data.notes = notes || null;
+
+    await db.vitalRecord.update({ where: { id: vitalId }, data });
+    revalidatePath(`/patients/${vital.admissionId}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function deleteVitals(vitalId: string) {
+  try {
+    await requireDoctor();
+
+    const vital = await db.vitalRecord.findUnique({
+      where: { id: vitalId },
+      select: { admissionId: true },
+    });
+    if (!vital) return { error: "Vital record not found" };
+
+    await db.vitalRecord.delete({ where: { id: vitalId } });
+    revalidatePath(`/patients/${vital.admissionId}`);
     return { success: true };
   } catch (error) {
     return handleActionError(error);

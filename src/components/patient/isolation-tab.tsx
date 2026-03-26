@@ -21,7 +21,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { logDisinfection, updateIsolationProtocol } from "@/actions/isolation";
+import { logDisinfection, updateIsolationProtocol, updateIsolationSetup, deleteDisinfectionLog } from "@/actions/isolation";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { PPE_OPTIONS, DISINFECTION_INTERVALS } from "@/lib/constants";
+import { Trash2 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,12 +212,126 @@ function PcrUpdateDialog({
   );
 }
 
+// ─── Edit Isolation Protocol Sheet ──────────────────────────────────────────
+
+function EditIsolationSheet({
+  protocol,
+  open,
+  onOpenChange,
+}: {
+  protocol: IsolationProtocol;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [disease, setDisease] = useState(protocol.disease);
+  const [ppeRequired, setPpeRequired] = useState<string[]>([...protocol.ppeRequired]);
+  const [disinfectant, setDisinfectant] = useState(protocol.disinfectant);
+  const [disinfectionInterval, setDisinfectionInterval] = useState(protocol.disinfectionInterval);
+  const [biosecurityNotes, setBiosecurityNotes] = useState(protocol.biosecurityNotes ?? "");
+
+  function togglePpe(ppe: string) {
+    setPpeRequired((prev) =>
+      prev.includes(ppe) ? prev.filter((p) => p !== ppe) : [...prev, ppe]
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!disease) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.set("disease", disease);
+      formData.set("ppeRequired", JSON.stringify(ppeRequired));
+      formData.set("disinfectant", disinfectant);
+      formData.set("disinfectionInterval", disinfectionInterval);
+      formData.set("biosecurityNotes", biosecurityNotes);
+      const result = await updateIsolationSetup(protocol.id, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Protocol updated");
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Failed to update protocol");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto pb-8">
+        <SheetHeader>
+          <SheetTitle>Edit Isolation Protocol</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 px-1">
+          <div className="space-y-1.5">
+            <Label>Disease *</Label>
+            <Input value={disease} onChange={(e) => setDisease(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>PPE Required</Label>
+            <div className="flex flex-wrap gap-2">
+              {PPE_OPTIONS.map((ppe) => (
+                <button
+                  key={ppe}
+                  type="button"
+                  onClick={() => togglePpe(ppe)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                    ppeRequired.includes(ppe)
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-gray-500"
+                  }`}
+                >
+                  {ppe}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Disinfectant</Label>
+            <Input value={disinfectant} onChange={(e) => setDisinfectant(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Disinfection Interval</Label>
+            <Select value={disinfectionInterval} onValueChange={(v) => setDisinfectionInterval(v ?? disinfectionInterval)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select interval" />
+              </SelectTrigger>
+              <SelectContent>
+                {DISINFECTION_INTERVALS.map((int) => (
+                  <SelectItem key={int.value} value={int.value}>{int.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Biosecurity Notes</Label>
+            <Textarea rows={3} value={biosecurityNotes} onChange={(e) => setBiosecurityNotes(e.target.value)} placeholder="Special biosecurity instructions..." />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={loading}>{loading ? "Saving..." : "Update Protocol"}</Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Disinfection Log Section ─────────────────────────────────────────────────
 
 function DisinfectionSection({
   protocol,
+  isDoctor,
 }: {
   protocol: IsolationProtocol;
+  isDoctor: boolean;
 }) {
   const [loggingId, setLoggingId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -218,13 +342,25 @@ function DisinfectionSection({
     setLoggingId(protocol.id);
     try {
       const result = await logDisinfection(protocol.id);
-      if (result?.success) {
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
         toast.success("Disinfection logged");
       }
     } catch {
       toast.error("Failed to log disinfection");
     } finally {
       setLoggingId(null);
+    }
+  }
+
+  async function handleDeleteLog(logId: string) {
+    try {
+      const result = await deleteDisinfectionLog(logId);
+      if (result && "error" in result && result.error) toast.error(result.error);
+      else toast.success("Log deleted");
+    } catch {
+      toast.error("Failed to delete log");
     }
   }
 
@@ -257,9 +393,16 @@ function DisinfectionSection({
                 className="flex items-center justify-between gap-2 rounded border border-red-100 bg-white/70 px-2.5 py-1.5"
               >
                 <p className="text-xs text-gray-700">{log.performedBy.name}</p>
-                <span className="text-xs text-gray-400 whitespace-nowrap">
-                  {formatRelative(log.performedAt)}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                    {formatRelative(log.performedAt)}
+                  </span>
+                  {isDoctor && (
+                    <button type="button" onClick={() => handleDeleteLog(log.id)} className="text-gray-400 hover:text-red-500" aria-label="Delete log">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -289,9 +432,16 @@ function DisinfectionSection({
                       className="flex items-center justify-between gap-2 rounded border border-red-100 bg-white/70 px-2.5 py-1.5"
                     >
                       <p className="text-xs text-gray-700">{log.performedBy.name}</p>
-                      <span className="text-xs text-gray-400 whitespace-nowrap">
-                        {formatDateTimeIST(log.performedAt)} IST
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-400 whitespace-nowrap">
+                          {formatDateTimeIST(log.performedAt)} IST
+                        </span>
+                        {isDoctor && (
+                          <button type="button" onClick={() => handleDeleteLog(log.id)} className="text-gray-400 hover:text-red-500" aria-label="Delete log">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -313,6 +463,7 @@ export function IsolationTab({
   isDoctor,
 }: IsolationTabProps) {
   const pcrLabResults = labResults.filter((r) => r.testType === "PCR");
+  const [editProtocolOpen, setEditProtocolOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -343,6 +494,11 @@ export function IsolationTab({
               {isolationProtocol.disease}
             </p>
           </div>
+          {isDoctor && (
+            <Button variant="outline" size="sm" className="flex-shrink-0 text-xs border-red-300 text-red-700 hover:bg-red-100" onClick={() => setEditProtocolOpen(true)}>
+              Edit Protocol
+            </Button>
+          )}
         </div>
 
         {/* PPE */}
@@ -438,7 +594,16 @@ export function IsolationTab({
       </div>
 
       {/* Disinfection section */}
-      <DisinfectionSection protocol={isolationProtocol} />
+      <DisinfectionSection protocol={isolationProtocol} isDoctor={isDoctor} />
+
+      {/* Edit Isolation Protocol Sheet */}
+      {isDoctor && (
+        <EditIsolationSheet
+          protocol={isolationProtocol}
+          open={editProtocolOpen}
+          onOpenChange={setEditProtocolOpen}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,30 @@
+"use client";
+
+import { useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTimeIST } from "@/lib/date-utils";
 import { NOTE_CATEGORY_LABELS, NOTE_ROLE_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { NoteForm } from "./note-form";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { updateNote, deleteNote } from "@/actions/notes";
 
 interface ClinicalNote {
   id: string;
@@ -29,7 +51,102 @@ const CATEGORY_COLORS: Record<string, string> = {
   OTHER: "bg-gray-100 text-gray-600",
 };
 
+const NOTE_CATEGORIES = [
+  "OBSERVATION",
+  "BEHAVIOR",
+  "WOUND_CARE",
+  "ELIMINATION",
+  "PROCEDURE",
+  "DOCTOR_ROUND",
+  "SHIFT_HANDOVER",
+  "OTHER",
+] as const;
+
+// ─── Edit Note Sheet ──────────────────────────────────────────────────────────
+
+function EditNoteSheet({
+  note,
+  open,
+  onOpenChange,
+}: {
+  note: ClinicalNote;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState(note.category);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+    if (category) formData.set("category", category);
+    try {
+      const result = await updateNote(note.id, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Note updated");
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Failed to update note");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto pb-safe">
+        <SheetHeader>
+          <SheetTitle>Edit Note</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="px-4 pb-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label>Category</Label>
+            <Select value={category} onValueChange={(v) => setCategory(v ?? category)}>
+              <SelectTrigger className="w-full h-12">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {NOTE_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {NOTE_CATEGORY_LABELS[cat]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-content">Note</Label>
+            <Textarea id="edit-content" name="content" rows={5} defaultValue={note.content} required />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={loading}>{loading ? "Saving..." : "Update Note"}</Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 export function NotesTab({ admissionId, notes, isDoctor }: NotesTabProps) {
+  const [editNote, setEditNote] = useState<ClinicalNote | null>(null);
+
+  async function handleDelete(noteId: string) {
+    try {
+      const result = await deleteNote(noteId);
+      if (result && "error" in result && result.error) toast.error(result.error);
+      else toast.success("Note deleted");
+    } catch {
+      toast.error("Failed to delete note");
+    }
+  }
+
   return (
     <div className="space-y-4">
       {notes.length === 0 ? (
@@ -75,9 +192,18 @@ export function NotesTab({ admissionId, notes, isDoctor }: NotesTabProps) {
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                          {formatDateTimeIST(note.recordedAt)} IST
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDateTimeIST(note.recordedAt)} IST
+                          </span>
+                          {isDoctor && (
+                            <ActionsMenu
+                              onEdit={() => setEditNote(note)}
+                              onDelete={() => handleDelete(note.id)}
+                              deleteConfirmMessage="Delete this clinical note? This action cannot be undone."
+                            />
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{note.content}</p>
                     </CardContent>
@@ -92,6 +218,15 @@ export function NotesTab({ admissionId, notes, isDoctor }: NotesTabProps) {
       <div className="pt-2">
         <NoteForm admissionId={admissionId} />
       </div>
+
+      {/* Edit Note Sheet */}
+      {editNote && (
+        <EditNoteSheet
+          note={editNote}
+          open={!!editNote}
+          onOpenChange={(open) => { if (!open) setEditNote(null); }}
+        />
+      )}
     </div>
   );
 }

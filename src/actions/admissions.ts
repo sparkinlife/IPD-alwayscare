@@ -319,6 +319,86 @@ export async function transferWard(admissionId: string, newWard: string, newCage
   }
 }
 
+export async function updatePatient(patientId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const patient = await db.patient.findUnique({
+      where: { id: patientId },
+      select: { id: true, deletedAt: true },
+    });
+    if (!patient || patient.deletedAt) return { error: "Patient not found" };
+
+    const name = (formData.get("name") as string)?.trim();
+    const breed = (formData.get("breed") as string) || null;
+    const age = (formData.get("age") as string) || null;
+    const weightStr = formData.get("weight") as string;
+    const weight = weightStr ? parseFloat(weightStr) : null;
+    const sex = formData.get("sex") as string;
+    const color = (formData.get("color") as string) || null;
+    const isStray = formData.get("isStray") === "true";
+    const rescueLocation = (formData.get("rescueLocation") as string) || null;
+    const rescuerInfo = (formData.get("rescuerInfo") as string) || null;
+
+    if (!name) return { error: "Patient name is required" };
+
+    await db.patient.update({
+      where: { id: patientId },
+      data: {
+        name,
+        breed,
+        age,
+        weight,
+        sex: sex ? validateSex(sex) : undefined,
+        color,
+        isStray,
+        rescueLocation,
+        rescuerInfo,
+      },
+    });
+
+    // Find admission for revalidation
+    const admission = await db.admission.findFirst({
+      where: { patientId, deletedAt: null },
+      select: { id: true },
+    });
+
+    revalidatePath("/");
+    if (admission) revalidatePath(`/patients/${admission.id}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function updateAdmission(admissionId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const admission = await db.admission.findUnique({
+      where: { id: admissionId },
+      select: { id: true, deletedAt: true },
+    });
+    if (!admission || admission.deletedAt) return { error: "Admission not found" };
+
+    const diagnosis = (formData.get("diagnosis") as string) || null;
+    const chiefComplaint = (formData.get("chiefComplaint") as string) || null;
+    const diagnosisNotes = (formData.get("diagnosisNotes") as string) || null;
+    const attendingDoctor = (formData.get("attendingDoctor") as string) || null;
+
+    await db.admission.update({
+      where: { id: admissionId },
+      data: { diagnosis, chiefComplaint, diagnosisNotes, attendingDoctor },
+    });
+
+    revalidatePath(`/patients/${admissionId}`);
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
 export async function dischargePatient(admissionId: string, formData: FormData) {
   try {
     const session = await requireDoctor();

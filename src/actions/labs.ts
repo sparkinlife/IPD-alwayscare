@@ -42,3 +42,52 @@ export async function addLabResult(admissionId: string, formData: FormData) {
     return handleActionError(error);
   }
 }
+
+export async function updateLabResult(labId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const lab = await db.labResult.findUnique({
+      where: { id: labId },
+      select: { admissionId: true },
+    });
+    if (!lab) return { error: "Lab result not found" };
+
+    const testType = formData.get("testType") as string;
+    const testName = formData.get("testName") as string;
+    const result = formData.get("result") as string;
+    const isAbnormal = formData.get("isAbnormal") === "true";
+    const notes = (formData.get("notes") as string) || null;
+    const reportUrl = (formData.get("reportUrl") as string) || null;
+
+    if (!testType || !testName || !result) return { error: "Test type, name, and result are required" };
+
+    await db.labResult.update({
+      where: { id: labId },
+      data: { testType: validateLabTestType(testType), testName, result, isAbnormal, notes, reportUrl },
+    });
+
+    revalidatePath(`/patients/${lab.admissionId}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function deleteLabResult(labId: string) {
+  try {
+    await requireDoctor();
+
+    const lab = await db.labResult.findUnique({
+      where: { id: labId },
+      select: { admissionId: true },
+    });
+    if (!lab) return { error: "Lab result not found" };
+
+    await db.labResult.delete({ where: { id: labId } });
+    revalidatePath(`/patients/${lab.admissionId}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}

@@ -150,6 +150,99 @@ export async function administerDose(
   }
 }
 
+export async function updateMedication(treatmentPlanId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const plan = await db.treatmentPlan.findUnique({
+      where: { id: treatmentPlanId },
+      select: { admissionId: true },
+    });
+    if (!plan) return { error: "Treatment plan not found" };
+
+    const drugName = formData.get("drugName") as string;
+    const dose = formData.get("dose") as string;
+    const calculatedDose = (formData.get("calculatedDose") as string) || null;
+    const route = formData.get("route") as string;
+    const frequency = formData.get("frequency") as string;
+    const scheduledTimesRaw = formData.get("scheduledTimes") as string;
+    const notes = (formData.get("notes") as string) || null;
+
+    if (!drugName || !dose || !route || !frequency) {
+      return { error: "Drug name, dose, route, and frequency are required" };
+    }
+
+    let scheduledTimes: string[] = [];
+    try {
+      scheduledTimes = scheduledTimesRaw ? JSON.parse(scheduledTimesRaw) : [];
+    } catch {
+      return { error: "Invalid scheduled times format" };
+    }
+
+    await db.treatmentPlan.update({
+      where: { id: treatmentPlanId },
+      data: {
+        drugName,
+        dose,
+        calculatedDose,
+        route: validateMedRoute(route),
+        frequency: validateFrequency(frequency),
+        scheduledTimes,
+        notes,
+      },
+    });
+
+    revalidatePath(`/patients/${plan.admissionId}`);
+    revalidatePath("/schedule");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function deleteMedication(treatmentPlanId: string) {
+  try {
+    await requireDoctor();
+
+    const plan = await db.treatmentPlan.findUnique({
+      where: { id: treatmentPlanId },
+      select: { admissionId: true },
+    });
+    if (!plan) return { error: "Treatment plan not found" };
+
+    await db.treatmentPlan.update({
+      where: { id: treatmentPlanId },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+
+    revalidatePath(`/patients/${plan.admissionId}`);
+    revalidatePath("/schedule");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function undoAdministration(administrationId: string) {
+  try {
+    await requireDoctor();
+
+    const admin = await db.medicationAdministration.findUnique({
+      where: { id: administrationId },
+      select: { treatmentPlan: { select: { admissionId: true } } },
+    });
+    if (!admin) return { error: "Administration record not found" };
+
+    await db.medicationAdministration.delete({ where: { id: administrationId } });
+
+    revalidatePath(`/patients/${admin.treatmentPlan.admissionId}`);
+    revalidatePath("/schedule");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
 export async function skipDose(
   treatmentPlanId: string,
   scheduledDate: string,

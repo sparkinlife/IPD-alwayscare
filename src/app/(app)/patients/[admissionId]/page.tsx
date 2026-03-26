@@ -112,13 +112,13 @@ export default async function PatientDetailPage(props: {
 
   return (
     <div className={isDoctor && isActive ? "pb-20" : ""}>
-      <PatientHeader admission={admission} />
+      <PatientHeader admission={admission} isDoctor={isDoctor} />
       <TabNav ward={admission.ward} activeTab={tab} />
 
-      {/* Tab content — components plugged in during Tasks 11–18 */}
+      {/* Tab content */}
       <div className="p-4">
         {tab === "vitals" && (
-          <VitalsTab admissionId={admissionId} vitals={admission.vitalRecords} />
+          <VitalsTab admissionId={admissionId} vitals={admission.vitalRecords} isDoctor={isDoctor} />
         )}
         {tab === "meds" && (
           <MedsTab
@@ -138,7 +138,7 @@ export default async function PatientDetailPage(props: {
           <LabsTab admissionId={admissionId} labResults={admission.labResults} isDoctor={isDoctor} />
         )}
         {tab === "bath" && (
-          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} />
+          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} isDoctor={isDoctor} />
         )}
         {tab === "isolation" && admission.isolationProtocol && (
           <IsolationTab admissionId={admissionId} isolationProtocol={admission.isolationProtocol} labResults={admission.labResults} isDoctor={session?.role === "DOCTOR"} />

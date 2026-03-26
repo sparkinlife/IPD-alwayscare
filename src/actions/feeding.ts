@@ -124,3 +124,49 @@ export async function logFeeding(feedingScheduleId: string, formData: FormData) 
     return handleActionError(error);
   }
 }
+
+export async function updateFeeding(feedingLogId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const feedingLog = await db.feedingLog.findUnique({
+      where: { id: feedingLogId },
+      select: { feedingSchedule: { select: { dietPlan: { select: { admissionId: true } } } } },
+    });
+    if (!feedingLog) return { error: "Feeding log not found" };
+
+    const status = formData.get("status") as string;
+    const amountConsumed = (formData.get("amountConsumed") as string) || null;
+    const notes = (formData.get("notes") as string) || null;
+
+    if (!status) return { error: "Status is required" };
+
+    await db.feedingLog.update({
+      where: { id: feedingLogId },
+      data: { status: validateFeedingStatus(status), amountConsumed, notes },
+    });
+
+    revalidatePath(`/patients/${feedingLog.feedingSchedule.dietPlan.admissionId}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function deleteFeeding(feedingLogId: string) {
+  try {
+    await requireDoctor();
+
+    const feedingLog = await db.feedingLog.findUnique({
+      where: { id: feedingLogId },
+      select: { feedingSchedule: { select: { dietPlan: { select: { admissionId: true } } } } },
+    });
+    if (!feedingLog) return { error: "Feeding log not found" };
+
+    await db.feedingLog.delete({ where: { id: feedingLogId } });
+    revalidatePath(`/patients/${feedingLog.feedingSchedule.dietPlan.admissionId}`);
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTodayIST, isOverdueByMinutes } from "@/lib/date-utils";
@@ -16,11 +16,25 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MedCheckoff } from "./med-checkoff";
 import { FluidCard } from "./fluid-card";
 import { PrescribeMedForm } from "./prescribe-med-form";
-import { stopMedication } from "@/actions/medications";
+import { stopMedication, updateMedication, deleteMedication } from "@/actions/medications";
 import { startFluidTherapy } from "@/actions/fluids";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import {
+  COMMON_DRUGS,
+  ROUTE_LABELS,
+  FREQUENCY_LABELS,
+  FREQUENCY_DEFAULT_TIMES,
+} from "@/lib/constants";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -158,7 +172,7 @@ function getGroupStatus(
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StoppedMedRow({ plan }: { plan: TreatmentPlan }) {
+function StoppedMedRow({ plan, isDoctor, onDelete }: { plan: TreatmentPlan; isDoctor: boolean; onDelete: () => void }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 mb-1.5">
       <div className="min-w-0">
@@ -169,7 +183,16 @@ function StoppedMedRow({ plan }: { plan: TreatmentPlan }) {
           {plan.dose} · {plan.route}
         </p>
       </div>
-      <span className="ml-2 flex-shrink-0 text-xs text-gray-400">Stopped</span>
+      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+        <span className="text-xs text-gray-400">Stopped</span>
+        {isDoctor && (
+          <ActionsMenu
+            onDelete={onDelete}
+            deleteLabel="Delete"
+            deleteConfirmMessage="Delete this stopped medication record? This action cannot be undone."
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -177,9 +200,13 @@ function StoppedMedRow({ plan }: { plan: TreatmentPlan }) {
 function ActivePlanSimpleRow({
   plan,
   isDoctor,
+  onEdit,
+  onDelete,
 }: {
   plan: TreatmentPlan;
   isDoctor: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const [stopLoading, setStopLoading] = useState(false);
 
@@ -206,14 +233,21 @@ function ActivePlanSimpleRow({
         {plan.notes && <p className="text-xs text-gray-400 mt-0.5">{plan.notes}</p>}
       </div>
       {isDoctor && (
-        <button
-          type="button"
-          onClick={handleStop}
-          disabled={stopLoading}
-          className="ml-2 flex-shrink-0 text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
-        >
-          {stopLoading ? "Stopping..." : "Stop"}
-        </button>
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleStop}
+            disabled={stopLoading}
+            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+          >
+            {stopLoading ? "Stopping..." : "Stop"}
+          </button>
+          <ActionsMenu
+            onEdit={onEdit}
+            onDelete={onDelete}
+            deleteConfirmMessage="Delete this medication? This action cannot be undone."
+          />
+        </div>
       )}
     </div>
   );
@@ -350,6 +384,159 @@ function StartFluidsButton({ admissionId }: { admissionId: string }) {
   );
 }
 
+// ─── Edit Medication Sheet ──────────────────────────────────────────────────
+
+function EditMedSheet({
+  plan,
+  open,
+  onOpenChange,
+}: {
+  plan: TreatmentPlan;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [drugName, setDrugName] = useState(plan.drugName);
+  const [dose, setDose] = useState(plan.dose);
+  const [calculatedDose, setCalculatedDose] = useState(plan.calculatedDose ?? "");
+  const [route, setRoute] = useState(plan.route);
+  const [frequency, setFrequency] = useState(plan.frequency);
+  const [scheduledTimes, setScheduledTimes] = useState<string[]>([...plan.scheduledTimes]);
+  const [newTime, setNewTime] = useState("");
+  const [notes, setNotes] = useState(plan.notes ?? "");
+
+  useEffect(() => {
+    if (open) {
+      setDrugName(plan.drugName);
+      setDose(plan.dose);
+      setCalculatedDose(plan.calculatedDose ?? "");
+      setRoute(plan.route);
+      setFrequency(plan.frequency);
+      setScheduledTimes([...plan.scheduledTimes]);
+      setNotes(plan.notes ?? "");
+    }
+  }, [open, plan]);
+
+  function addTime() {
+    const t = newTime.trim();
+    if (t && !scheduledTimes.includes(t)) {
+      setScheduledTimes((prev) => [...prev, t].sort());
+      setNewTime("");
+    }
+  }
+
+  function removeTime(t: string) {
+    setScheduledTimes((prev) => prev.filter((x) => x !== t));
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!drugName || !dose || !route || !frequency) {
+      toast.error("Drug name, dose, route, and frequency are required");
+      return;
+    }
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.set("drugName", drugName);
+      formData.set("dose", dose);
+      formData.set("calculatedDose", calculatedDose);
+      formData.set("route", route);
+      formData.set("frequency", frequency);
+      formData.set("scheduledTimes", JSON.stringify(scheduledTimes));
+      formData.set("notes", notes);
+
+      const result = await updateMedication(plan.id, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Medication updated");
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Failed to update medication");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto pb-8">
+        <SheetHeader>
+          <SheetTitle>Edit Medication</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 px-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-drugName">Drug Name *</Label>
+            <Input id="edit-drugName" list="edit-drug-suggestions" placeholder="e.g. Ceftriaxone" value={drugName} onChange={(e) => setDrugName(e.target.value)} required />
+            <datalist id="edit-drug-suggestions">
+              {COMMON_DRUGS.map((d) => <option key={d} value={d} />)}
+            </datalist>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-dose">Dose *</Label>
+              <Input id="edit-dose" placeholder="e.g. 25 mg/kg" value={dose} onChange={(e) => setDose(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-calcDose">Calculated Dose</Label>
+              <Input id="edit-calcDose" placeholder="e.g. 500 mg" value={calculatedDose} onChange={(e) => setCalculatedDose(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Route *</Label>
+            <Select value={route} onValueChange={(v) => setRoute(v ?? route)}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Select route" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(ROUTE_LABELS).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Frequency *</Label>
+            <Select value={frequency} onValueChange={(v) => {
+              setFrequency(v ?? frequency);
+              if (v && FREQUENCY_DEFAULT_TIMES[v]) setScheduledTimes([...FREQUENCY_DEFAULT_TIMES[v]]);
+            }}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Select frequency" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(FREQUENCY_LABELS).map(([key, label]) => <SelectItem key={key} value={key}>{key} — {label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Scheduled Times</Label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {scheduledTimes.map((t) => (
+                <span key={t} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                  {t}
+                  <button type="button" onClick={() => removeTime(t)} className="ml-0.5 text-gray-400 hover:text-gray-700" aria-label={`Remove ${t}`}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              {scheduledTimes.length === 0 && <span className="text-xs text-gray-400">No times set</span>}
+            </div>
+            <div className="flex gap-2">
+              <Input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="flex-1" />
+              <Button type="button" variant="outline" size="sm" onClick={addTime}>Add</Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-medNotes">Notes</Label>
+            <Textarea id="edit-medNotes" placeholder="Special instructions..." rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={loading}>{loading ? "Saving..." : "Update"}</Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MedsTab({
@@ -359,7 +546,18 @@ export function MedsTab({
   isDoctor,
 }: MedsTabProps) {
   const [stoppedOpen, setStoppedOpen] = useState(false);
+  const [editPlan, setEditPlan] = useState<TreatmentPlan | null>(null);
   const today = getTodayIST();
+
+  async function handleDeleteMed(planId: string) {
+    try {
+      const result = await deleteMedication(planId);
+      if (result && "error" in result && result.error) toast.error(result.error);
+      else toast.success("Medication deleted");
+    } catch {
+      toast.error("Failed to delete medication");
+    }
+  }
 
   const activeFluid = fluidTherapies.find((f) => f.isActive) ?? null;
   const activePlans = treatmentPlans.filter((p) => p.isActive);
@@ -441,6 +639,7 @@ export function MedsTab({
                   scheduledDate={today}
                   scheduledTime={slot.scheduledTime}
                   administration={slot.administration}
+                  isDoctor={isDoctor}
                 />
               ))}
             </div>
@@ -459,6 +658,8 @@ export function MedsTab({
               key={plan.id}
               plan={plan}
               isDoctor={isDoctor}
+              onEdit={() => setEditPlan(plan)}
+              onDelete={() => handleDeleteMed(plan.id)}
             />
           ))}
         </div>
@@ -485,11 +686,20 @@ export function MedsTab({
           {stoppedOpen && (
             <div className="mt-2">
               {stoppedPlans.map((plan) => (
-                <StoppedMedRow key={plan.id} plan={plan} />
+                <StoppedMedRow key={plan.id} plan={plan} isDoctor={isDoctor} onDelete={() => handleDeleteMed(plan.id)} />
               ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* Edit Medication Sheet */}
+      {editPlan && (
+        <EditMedSheet
+          plan={editPlan}
+          open={!!editPlan}
+          onOpenChange={(open) => { if (!open) setEditPlan(null); }}
+        />
       )}
     </div>
   );

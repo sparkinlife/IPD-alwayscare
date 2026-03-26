@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { administerDose } from "@/actions/medications";
+import { administerDose, undoAdministration } from "@/actions/medications";
 import { MedSkipSheet } from "./med-skip-sheet";
 import { isOverdueByMinutes, formatTimeIST } from "@/lib/date-utils";
 
@@ -29,6 +29,7 @@ interface MedCheckoffProps {
   scheduledDate: string;
   scheduledTime: string;
   administration?: Administration | null;
+  isDoctor?: boolean;
 }
 
 const ROUTE_ABBR: Record<string, string> = {
@@ -49,11 +50,13 @@ export function MedCheckoff({
   scheduledDate,
   scheduledTime,
   administration,
+  isDoctor,
 }: MedCheckoffProps) {
   const [optimisticAdmin, setOptimisticAdmin] = useState<
     Administration | null | undefined
   >(administration);
   const [checkLoading, setCheckLoading] = useState(false);
+  const [undoLoading, setUndoLoading] = useState(false);
   const [skipOpen, setSkipOpen] = useState(false);
 
   const isAdministered = optimisticAdmin?.wasAdministered === true;
@@ -106,6 +109,24 @@ export function MedCheckoff({
       actualTime: null,
       administeredBy: null,
     });
+  }
+
+  async function handleUndo() {
+    if (!optimisticAdmin || optimisticAdmin.id.startsWith("optimistic")) return;
+    setUndoLoading(true);
+    try {
+      const result = await undoAdministration(optimisticAdmin.id);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Administration undone");
+        setOptimisticAdmin(null);
+      }
+    } catch {
+      toast.error("Failed to undo administration");
+    } finally {
+      setUndoLoading(false);
+    }
   }
 
   let rowBg = "bg-white border-gray-100";
@@ -191,6 +212,18 @@ export function MedCheckoff({
             </span>
           )}
         </button>
+
+        {/* Undo button (doctor only) */}
+        {isDoctor && (isAdministered || isSkipped) && optimisticAdmin && !optimisticAdmin.id.startsWith("optimistic") && (
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={undoLoading}
+            className="flex-shrink-0 text-xs text-gray-400 hover:text-gray-700 disabled:opacity-50"
+          >
+            {undoLoading ? "..." : "Undo"}
+          </button>
+        )}
 
         {/* Overdue indicator */}
         {isOverdue && (

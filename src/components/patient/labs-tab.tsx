@@ -2,10 +2,31 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTimeIST } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { LabForm } from "./lab-form";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { updateLabResult, deleteLabResult } from "@/actions/labs";
 
 interface LabResult {
   id: string;
@@ -51,10 +72,114 @@ const LAB_TYPE_COLORS: Record<string, string> = {
   OTHER: "bg-gray-100 text-gray-600",
 };
 
-function LabResultCard({ item }: { item: LabResult }) {
+const LAB_TEST_TYPES = [
+  { value: "CBC", label: "CBC -- Complete Blood Count" },
+  { value: "BLOOD_CHEMISTRY", label: "Blood Chemistry" },
+  { value: "PCR", label: "PCR" },
+  { value: "URINALYSIS", label: "Urinalysis" },
+  { value: "FECAL_EXAM", label: "Fecal Exam" },
+  { value: "XRAY", label: "X-Ray" },
+  { value: "ULTRASOUND", label: "Ultrasound" },
+  { value: "SEROLOGY", label: "Serology" },
+  { value: "SKIN_SCRAPING", label: "Skin Scraping" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+// ─── Edit Lab Sheet ──────────────────────────────────────────────────────────
+
+function EditLabSheet({
+  lab,
+  open,
+  onOpenChange,
+}: {
+  lab: LabResult;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [testType, setTestType] = useState(lab.testType);
+  const [isAbnormal, setIsAbnormal] = useState(lab.isAbnormal);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+    if (testType) formData.set("testType", testType);
+    formData.set("isAbnormal", isAbnormal ? "true" : "false");
+    try {
+      const result = await updateLabResult(lab.id, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Lab result updated");
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Failed to update lab result");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto pb-safe">
+        <SheetHeader>
+          <SheetTitle>Edit Lab Result</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="px-4 pb-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label>Test Type</Label>
+            <Select value={testType} onValueChange={(v) => setTestType(v ?? testType)}>
+              <SelectTrigger className="w-full h-12">
+                <SelectValue placeholder="Select test type" />
+              </SelectTrigger>
+              <SelectContent>
+                {LAB_TEST_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-testName">Test Name</Label>
+            <Input id="edit-testName" name="testName" defaultValue={lab.testName} className="h-12" required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-result">Result</Label>
+            <Textarea id="edit-result" name="result" rows={4} defaultValue={lab.result} required />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">Abnormal Result</p>
+              <p className="text-xs text-muted-foreground">Flag this result as abnormal</p>
+            </div>
+            <Switch checked={isAbnormal} onCheckedChange={setIsAbnormal} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-labNotes">Notes</Label>
+            <Textarea id="edit-labNotes" name="notes" rows={3} defaultValue={lab.notes ?? ""} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-reportUrl">Report URL</Label>
+            <Input id="edit-reportUrl" name="reportUrl" type="url" defaultValue={lab.reportUrl ?? ""} className="h-12" />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={loading}>{loading ? "Saving..." : "Update Result"}</Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── Lab Result Card ─────────────────────────────────────────────────────────
+
+function LabResultCard({ item, isDoctor, onEdit, onDelete }: { item: LabResult; isDoctor: boolean; onEdit: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = item.result.length > 100;
-  const displayResult = !expanded && isLong ? item.result.slice(0, 100) + "…" : item.result;
+  const displayResult = !expanded && isLong ? item.result.slice(0, 100) + "\u2026" : item.result;
   const typeColor = LAB_TYPE_COLORS[item.testType] ?? "bg-gray-100 text-gray-600";
   const typeLabel = LAB_TYPE_LABELS[item.testType] ?? item.testType;
 
@@ -73,9 +198,18 @@ function LabResultCard({ item }: { item: LabResult }) {
               </span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-            {formatDateTimeIST(item.resultDate)} IST
-          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {formatDateTimeIST(item.resultDate)} IST
+            </span>
+            {isDoctor && (
+              <ActionsMenu
+                onEdit={onEdit}
+                onDelete={onDelete}
+                deleteConfirmMessage="Delete this lab result? This action cannot be undone."
+              />
+            )}
+          </div>
         </div>
 
         {item.createdBy && (
@@ -130,7 +264,21 @@ function LabResultCard({ item }: { item: LabResult }) {
   );
 }
 
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 export function LabsTab({ admissionId, labResults, isDoctor }: LabsTabProps) {
+  const [editLab, setEditLab] = useState<LabResult | null>(null);
+
+  async function handleDelete(labId: string) {
+    try {
+      const result = await deleteLabResult(labId);
+      if (result && "error" in result && result.error) toast.error(result.error);
+      else toast.success("Lab result deleted");
+    } catch {
+      toast.error("Failed to delete lab result");
+    }
+  }
+
   return (
     <div className="space-y-4">
       {labResults.length === 0 ? (
@@ -142,7 +290,13 @@ export function LabsTab({ admissionId, labResults, isDoctor }: LabsTabProps) {
       ) : (
         <div className="space-y-3">
           {labResults.map((item) => (
-            <LabResultCard key={item.id} item={item} />
+            <LabResultCard
+              key={item.id}
+              item={item}
+              isDoctor={isDoctor}
+              onEdit={() => setEditLab(item)}
+              onDelete={() => handleDelete(item.id)}
+            />
           ))}
         </div>
       )}
@@ -151,6 +305,15 @@ export function LabsTab({ admissionId, labResults, isDoctor }: LabsTabProps) {
         <div className="pt-2">
           <LabForm admissionId={admissionId} />
         </div>
+      )}
+
+      {/* Edit Lab Sheet */}
+      {editLab && (
+        <EditLabSheet
+          lab={editLab}
+          open={!!editLab}
+          onOpenChange={(open) => { if (!open) setEditLab(null); }}
+        />
       )}
     </div>
   );

@@ -92,6 +92,35 @@ export async function changeFluidRate(fluidTherapyId: string, formData: FormData
   }
 }
 
+export async function updateFluidTherapy(fluidId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const fluid = await db.fluidTherapy.findUnique({
+      where: { id: fluidId },
+      select: { admissionId: true },
+    });
+    if (!fluid) return { error: "Fluid therapy not found" };
+
+    const fluidType = formData.get("fluidType") as string;
+    const additives = (formData.get("additives") as string) || null;
+    const notes = (formData.get("notes") as string) || null;
+
+    if (!fluidType) return { error: "Fluid type is required" };
+
+    await db.fluidTherapy.update({
+      where: { id: fluidId },
+      data: { fluidType, additives, notes },
+    });
+
+    revalidatePath(`/patients/${fluid.admissionId}`);
+    revalidatePath("/schedule");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
 export async function stopFluids(fluidTherapyId: string) {
   try {
     await requireDoctor();

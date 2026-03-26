@@ -15,7 +15,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { logBath } from "@/actions/baths";
+import { logBath, updateBath, deleteBath } from "@/actions/baths";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ interface BathTabProps {
   admissionId: string;
   bathLogs: BathLog[];
   admissionDate: Date;
+  isDoctor?: boolean;
 }
 
 // ─── Bath Status Banner ───────────────────────────────────────────────────────
@@ -104,7 +106,9 @@ function LogBathSheet({ admissionId }: { admissionId: string }) {
       const formData = new FormData();
       if (notes) formData.set("notes", notes);
       const result = await logBath(admissionId, formData);
-      if (result?.success) {
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
         toast.success("Bath logged successfully");
         setNotes("");
         setOpen(false);
@@ -170,9 +174,62 @@ function LogBathSheet({ admissionId }: { admissionId: string }) {
   );
 }
 
+// ─── Edit Bath Sheet ──────────────────────────────────────────────────────────
+
+function EditBathSheet({
+  bath,
+  open,
+  onOpenChange,
+}: {
+  bath: BathLog;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await updateBath(bath.id, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Bath log updated");
+        onOpenChange(false);
+      }
+    } catch {
+      toast.error("Failed to update bath log");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="pb-8">
+        <SheetHeader>
+          <SheetTitle>Edit Bath Notes</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 px-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-bath-notes">Notes</Label>
+            <Textarea id="edit-bath-notes" name="notes" rows={3} defaultValue={bath.notes ?? ""} placeholder="Any observations..." />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={loading}>{loading ? "Saving..." : "Update"}</Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Bath History ─────────────────────────────────────────────────────────────
 
-function BathHistory({ bathLogs }: { bathLogs: BathLog[] }) {
+function BathHistory({ bathLogs, isDoctor, onEdit, onDelete }: { bathLogs: BathLog[]; isDoctor?: boolean; onEdit: (bath: BathLog) => void; onDelete: (bathId: string) => void }) {
   const [open, setOpen] = useState(false);
 
   if (bathLogs.length === 0) return null;
@@ -211,9 +268,18 @@ function BathHistory({ bathLogs }: { bathLogs: BathLog[] }) {
                     <p className="mt-0.5 text-xs text-gray-500">{log.notes}</p>
                   )}
                 </div>
-                <span className="flex-shrink-0 text-xs text-gray-400 whitespace-nowrap">
-                  {formatRelative(log.bathedAt)}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                    {formatRelative(log.bathedAt)}
+                  </span>
+                  {isDoctor && (
+                    <ActionsMenu
+                      onEdit={() => onEdit(log)}
+                      onDelete={() => onDelete(log.id)}
+                      deleteConfirmMessage="Delete this bath log? This action cannot be undone."
+                    />
+                  )}
+                </div>
               </div>
               <p className="mt-0.5 text-xs text-gray-400">
                 {formatDateTimeIST(log.bathedAt)} IST
@@ -232,9 +298,21 @@ export function BathTab({
   admissionId,
   bathLogs,
   admissionDate,
+  isDoctor,
 }: BathTabProps) {
   const lastBathLog = bathLogs[0] ?? null;
   const lastBathDate = lastBathLog ? lastBathLog.bathedAt : null;
+  const [editBath, setEditBath] = useState<BathLog | null>(null);
+
+  async function handleDelete(bathId: string) {
+    try {
+      const result = await deleteBath(bathId);
+      if (result && "error" in result && result.error) toast.error(result.error);
+      else toast.success("Bath log deleted");
+    } catch {
+      toast.error("Failed to delete bath log");
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -258,7 +336,16 @@ export function BathTab({
       </div>
 
       {/* Bath history */}
-      <BathHistory bathLogs={bathLogs} />
+      <BathHistory bathLogs={bathLogs} isDoctor={isDoctor} onEdit={(bath) => setEditBath(bath)} onDelete={handleDelete} />
+
+      {/* Edit Bath Sheet */}
+      {editBath && (
+        <EditBathSheet
+          bath={editBath}
+          open={!!editBath}
+          onOpenChange={(open) => { if (!open) setEditBath(null); }}
+        />
+      )}
     </div>
   );
 }

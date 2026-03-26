@@ -17,7 +17,13 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/date-utils";
-import { changeFluidRate, stopFluids } from "@/actions/fluids";
+import { changeFluidRate, stopFluids, updateFluidTherapy } from "@/actions/fluids";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface FluidRateChange {
   id: string;
@@ -47,11 +53,16 @@ interface FluidCardProps {
 export function FluidCard({ fluid, isDoctor }: FluidCardProps) {
   const [changeRateOpen, setChangeRateOpen] = useState(false);
   const [stopOpen, setStopOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [newRate, setNewRate] = useState("");
   const [reason, setReason] = useState("");
   const [rateLoading, setRateLoading] = useState(false);
   const [stopLoading, setStopLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editFluidType, setEditFluidType] = useState(fluid.fluidType);
+  const [editAdditives, setEditAdditives] = useState(fluid.additives ?? "");
+  const [editNotes, setEditNotes] = useState(fluid.notes ?? "");
 
   async function handleChangeRate() {
     if (!newRate) {
@@ -96,6 +107,32 @@ export function FluidCard({ fluid, isDoctor }: FluidCardProps) {
     }
   }
 
+  async function handleEditFluid(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editFluidType) {
+      toast.error("Fluid type is required");
+      return;
+    }
+    setEditLoading(true);
+    try {
+      const formData = new FormData();
+      formData.set("fluidType", editFluidType);
+      formData.set("additives", editAdditives);
+      formData.set("notes", editNotes);
+      const result = await updateFluidTherapy(fluid.id, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Fluid therapy updated");
+        setEditOpen(false);
+      }
+    } catch {
+      toast.error("Failed to update fluid therapy");
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
   return (
     <Card className="mb-4 overflow-hidden border-blue-200 bg-blue-50">
       <div className="p-4">
@@ -126,6 +163,10 @@ export function FluidCard({ fluid, isDoctor }: FluidCardProps) {
 
           {isDoctor && (
             <div className="flex flex-col gap-1.5 flex-shrink-0">
+              {/* Edit Fluid */}
+              <Button size="sm" variant="outline" className="text-xs h-7 px-2" onClick={() => { setEditFluidType(fluid.fluidType); setEditAdditives(fluid.additives ?? ""); setEditNotes(fluid.notes ?? ""); setEditOpen(true); }}>
+                Edit
+              </Button>
               {/* Change Rate */}
               <Dialog open={changeRateOpen} onOpenChange={setChangeRateOpen}>
                 <DialogTrigger
@@ -263,6 +304,33 @@ export function FluidCard({ fluid, isDoctor }: FluidCardProps) {
           </div>
         )}
       </div>
+
+      {/* Edit Fluid Sheet */}
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="bottom" className="pb-8">
+          <SheetHeader>
+            <SheetTitle>Edit Fluid Therapy</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleEditFluid} className="mt-4 space-y-4 px-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="editFluidType">Fluid Type *</Label>
+              <Input id="editFluidType" placeholder="e.g. Ringer's Lactate" value={editFluidType} onChange={(e) => setEditFluidType(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editAdditives">Additives</Label>
+              <Input id="editAdditives" placeholder="e.g. KCl 20 mEq/L" value={editAdditives} onChange={(e) => setEditAdditives(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editFluidNotes">Notes</Label>
+              <Textarea id="editFluidNotes" rows={2} placeholder="Special instructions..." value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setEditOpen(false)} disabled={editLoading}>Cancel</Button>
+              <Button type="submit" className="flex-1" disabled={editLoading}>{editLoading ? "Saving..." : "Update"}</Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }

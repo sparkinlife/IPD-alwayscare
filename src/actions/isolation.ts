@@ -82,3 +82,68 @@ export async function updateIsolationProtocol(
     return handleActionError(error);
   }
 }
+
+export async function updateIsolationSetup(protocolId: string, formData: FormData) {
+  try {
+    await requireDoctor();
+
+    const protocol = await db.isolationProtocol.findUnique({
+      where: { id: protocolId },
+      select: { admissionId: true },
+    });
+    if (!protocol) return { error: "Protocol not found" };
+
+    const disease = formData.get("disease") as string;
+    const ppeJson = formData.get("ppeRequired") as string;
+    const disinfectant = formData.get("disinfectant") as string;
+    const disinfectionInterval = formData.get("disinfectionInterval") as string;
+    const biosecurityNotes = (formData.get("biosecurityNotes") as string) || null;
+
+    if (!disease) return { error: "Disease is required" };
+
+    let ppeRequired: string[] = [];
+    if (ppeJson) {
+      try {
+        ppeRequired = JSON.parse(ppeJson);
+      } catch {
+        return { error: "Invalid PPE format" };
+      }
+    }
+
+    await db.isolationProtocol.update({
+      where: { id: protocolId },
+      data: {
+        disease,
+        ppeRequired,
+        disinfectant: disinfectant || "Quaternary ammonium compound",
+        disinfectionInterval: disinfectionInterval || "Q4H",
+        biosecurityNotes,
+      },
+    });
+
+    revalidatePath(`/patients/${protocol.admissionId}`);
+    revalidatePath("/isolation");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function deleteDisinfectionLog(logId: string) {
+  try {
+    await requireDoctor();
+
+    const log = await db.disinfectionLog.findUnique({
+      where: { id: logId },
+      select: { isolationProtocol: { select: { admissionId: true } } },
+    });
+    if (!log) return { error: "Disinfection log not found" };
+
+    await db.disinfectionLog.delete({ where: { id: logId } });
+    revalidatePath(`/patients/${log.isolationProtocol.admissionId}`);
+    revalidatePath("/isolation");
+    return { success: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}

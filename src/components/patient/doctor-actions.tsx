@@ -41,6 +41,7 @@ interface DoctorActionsProps {
   currentCondition: string | null;
   currentWard: string | null;
   availableCages: AvailableCage[];
+  isActive?: boolean;
 }
 
 export function DoctorActions({
@@ -48,6 +49,7 @@ export function DoctorActions({
   currentCondition,
   currentWard,
   availableCages,
+  isActive = true,
 }: DoctorActionsProps) {
   // Update Condition state
   const [conditionOpen, setConditionOpen] = useState(false);
@@ -107,9 +109,9 @@ export function DoctorActions({
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-10">
-      {/* Update Condition */}
-      <Sheet open={conditionOpen} onOpenChange={setConditionOpen}>
+    <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-10">
+      {/* Update Condition — only for active patients */}
+      {isActive && <Sheet open={conditionOpen} onOpenChange={setConditionOpen}>
         <SheetTrigger
           render={
             <Button variant="outline" size="sm" className="flex-1 gap-1.5" />
@@ -150,10 +152,10 @@ export function DoctorActions({
             </Button>
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet>}
 
-      {/* Transfer Ward */}
-      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+      {/* Transfer Ward — only for active patients */}
+      {isActive && <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
         <DialogTrigger
           render={
             <Button variant="outline" size="sm" className="flex-1 gap-1.5" />
@@ -232,9 +234,9 @@ export function DoctorActions({
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
-      {/* Archive */}
+      {/* Archive — always visible for doctors */}
       <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
         <DialogTrigger
           render={
@@ -270,8 +272,8 @@ export function DoctorActions({
         </DialogContent>
       </Dialog>
 
-      {/* Discharge */}
-      <DischargeForm admissionId={admissionId} />
+      {/* Discharge — only for active patients */}
+      {isActive && <DischargeForm admissionId={admissionId} />}
     </div>
   );
 }

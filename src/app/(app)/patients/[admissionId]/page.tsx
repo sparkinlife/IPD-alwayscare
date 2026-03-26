@@ -146,12 +146,13 @@ export default async function PatientDetailPage(props: {
         )}
       </div>
 
-      {isDoctor && isActive && (
+      {isDoctor && (
         <DoctorActions
           admissionId={admissionId}
           currentCondition={admission.condition}
           currentWard={admission.ward}
           availableCages={availableCages}
+          isActive={isActive}
         />
       )}
     </div>

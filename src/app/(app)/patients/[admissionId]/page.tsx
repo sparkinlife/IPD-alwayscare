@@ -9,6 +9,8 @@ import { MedsTab } from "@/components/patient/meds-tab";
 import { FoodTab } from "@/components/patient/food-tab";
 import { NotesTab } from "@/components/patient/notes-tab";
 import { LabsTab } from "@/components/patient/labs-tab";
+import { BathTab } from "@/components/patient/bath-tab";
+import { IsolationTab } from "@/components/patient/isolation-tab";
 
 export default async function PatientDetailPage(props: {
   params: Promise<{ admissionId: string }>;
@@ -134,10 +136,10 @@ export default async function PatientDetailPage(props: {
           <LabsTab admissionId={admissionId} labResults={admission.labResults} isDoctor={isDoctor} />
         )}
         {tab === "bath" && (
-          <div className="text-sm text-gray-500">Bath content — coming in Task 17</div>
+          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} />
         )}
-        {tab === "isolation" && admission.ward === "ISOLATION" && (
-          <div className="text-sm text-gray-500">Isolation content — coming in Task 18</div>
+        {tab === "isolation" && admission.isolationProtocol && (
+          <IsolationTab admissionId={admissionId} isolationProtocol={admission.isolationProtocol} labResults={admission.labResults} isDoctor={session?.role === "DOCTOR"} />
         )}
       </div>
 

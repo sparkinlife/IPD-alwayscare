@@ -78,3 +78,11 @@ export function getTodayUTCDate(): Date {
 export function getNowTimeIST(): string {
   return formatInTimeZone(new Date(), IST_ZONE, "HH:mm");
 }
+
+/**
+ * Parse a disinfection interval string like "Q4H" into hours.
+ * Returns 4 for "Q4H", 6 for "Q6H", etc. Defaults to 4 if unparseable.
+ */
+export function parseIntervalHours(intervalStr: string): number {
+  return parseInt(intervalStr.match(/\d+/)?.[0] ?? "4", 10);
+}

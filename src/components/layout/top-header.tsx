@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Home, Calendar, AlertTriangle, Archive, User, Settings } from "lucide-react";
+import { NotificationBell } from "./notification-bell";
 
 export async function TopHeader() {
   const session = await getSession();
@@ -44,16 +45,19 @@ export async function TopHeader() {
         </Link>
       </nav>
 
-      {session && (
-        <div className="flex items-center gap-2">
-          <span className="hidden text-sm font-medium text-foreground sm:block">
-            {session.name}
-          </span>
-          <Badge className="bg-clinic-teal text-white" variant="default">
-            {session.role}
-          </Badge>
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+        {session && (
+          <>
+            <span className="hidden text-sm font-medium text-foreground sm:block">
+              {session.name}
+            </span>
+            <Badge className="bg-clinic-teal text-white" variant="default">
+              {session.role}
+            </Badge>
+          </>
+        )}
+      </div>
     </header>
   );
 }

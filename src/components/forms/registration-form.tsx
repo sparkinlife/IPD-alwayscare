@@ -29,15 +29,16 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
   const [sex, setSex] = useState("UNKNOWN");
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state) return;
+    if ("success" in state && state.success) {
       toast.success("Patient registered");
-      if (isDoctor && state.admissionId) {
+      if (isDoctor && "admissionId" in state && state.admissionId) {
         router.push(`/patients/${state.admissionId}/setup`);
       } else {
         router.push("/");
       }
     }
-    if (state?.error) {
+    if ("error" in state && state.error) {
       toast.error(state.error);
     }
   }, [state, router, isDoctor]);

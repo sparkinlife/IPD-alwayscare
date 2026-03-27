@@ -34,7 +34,7 @@ export async function registerPatient(_prevState: unknown, formData: FormData) {
 
     if (!name) return { error: "Patient name is required" };
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: any) => {
       const patient = await tx.patient.create({
         data: {
           name,
@@ -128,7 +128,7 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
       if (!Array.isArray(feedings)) return { error: "Invalid feeding schedules format" };
     }
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       // Check cage uniqueness INSIDE the transaction to avoid race conditions
       const existingCage = await tx.admission.findFirst({
         where: {
@@ -287,7 +287,7 @@ export async function transferWard(admissionId: string, newWard: string, newCage
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       const existing = await tx.admission.findFirst({
         where: { cageNumber: newCage, status: "ACTIVE", id: { not: admissionId } },
         include: { patient: { select: { name: true } } },
@@ -401,7 +401,7 @@ export async function archivePatient(admissionId: string) {
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
 
     // Soft-delete admission and patient + deactivate plans atomically
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       await tx.admission.update({
         where: { id: admissionId },
         data: { deletedAt: new Date() },
@@ -431,7 +431,7 @@ export async function restorePatient(patientId: string) {
   try {
     const session = await requireDoctor();
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       await tx.patient.update({
         where: { id: patientId },
         data: { deletedAt: null },
@@ -488,7 +488,7 @@ export async function permanentlyDeletePatient(patientId: string) {
       return { error: "Cannot permanently delete a patient with active admissions. Archive them first." };
     }
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       // 0a. Collect record IDs that ProofAttachments may reference
       const proofTreatmentPlanIds = (await tx.treatmentPlan.findMany({
         where: { admissionId: { in: admissionIds } },
@@ -657,7 +657,7 @@ export async function dischargePatient(admissionId: string, formData: FormData) 
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
 
     // Discharge + deactivate plans atomically
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       await tx.admission.update({
         where: { id: admissionId },
         data: {

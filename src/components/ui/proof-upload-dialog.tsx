@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Camera, X, AlertTriangle, ChevronDown, ChevronUp, Loader2, ExternalLink, ImageOff, Plus } from "lucide-react";
+import { Camera, X, AlertTriangle, Loader2, ExternalLink, ImageOff, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -10,6 +10,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { buildDriveFolderPath, buildDriveFileName } from "@/lib/drive-path";
 import { uploadFileChunked } from "@/lib/chunked-upload";
 import { getProofAttachments, deleteProofAttachment, saveProofAttachments } from "@/actions/proof";
@@ -714,64 +720,76 @@ function ProofCreateSheet({
             )}
           </Button>
 
-          {/* Skip section */}
-          <div className="rounded-lg border border-gray-200 bg-gray-50">
-            <button
-              type="button"
-              onClick={() => setSkipExpanded((v) => !v)}
-              disabled={uploading}
-              className="flex w-full items-center justify-between px-4 py-3 text-left disabled:opacity-50"
-            >
-              <span className="text-sm font-medium text-gray-600">Submit without photo</span>
-              {skipExpanded ? (
-                <ChevronUp className="h-4 w-4 text-gray-400" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              )}
-            </button>
-
-            {skipExpanded && (
-              <div className="border-t border-gray-200 px-4 pb-4 pt-3 space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Reason</label>
-                  <select
-                    value={skipReason}
-                    onChange={(e) => setSkipReason(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    {SKIP_REASONS.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {skipReason === "Other" && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">Specify reason</label>
-                    <input
-                      type="text"
-                      value={customReason}
-                      onChange={(e) => setCustomReason(e.target.value)}
-                      placeholder="Enter reason..."
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSkipSubmit}
-                  disabled={uploading || (skipReason === "Other" && !customReason.trim())}
-                  className="w-full"
-                >
-                  Submit Without Photo
-                </Button>
-              </div>
-            )}
-          </div>
+          {/* Skip link — opens separate confirmation dialog */}
+          <button
+            type="button"
+            onClick={() => setSkipExpanded(true)}
+            disabled={uploading}
+            className="w-full text-center text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 py-2 disabled:opacity-50"
+          >
+            Skip photo upload
+          </button>
         </div>
       </SheetContent>
+
+      {/* Skip reason dialog — separate from main upload sheet */}
+      <Dialog open={skipExpanded} onOpenChange={setSkipExpanded}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Why are you skipping?</DialogTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Uploading proof photos is standard protocol at Always Care. Please provide a reason for skipping.
+            </p>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-600">Reason *</label>
+              <select
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                {SKIP_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+
+            {skipReason === "Other" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-600">Specify reason *</label>
+                <input
+                  type="text"
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Enter reason..."
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setSkipExpanded(false)}
+              >
+                Go Back
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="flex-1"
+                onClick={handleSkipSubmit}
+                disabled={skipReason === "Other" && !customReason.trim()}
+              >
+                Confirm Skip
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }

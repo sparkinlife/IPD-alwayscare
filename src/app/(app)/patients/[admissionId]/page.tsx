@@ -142,6 +142,7 @@ export default async function PatientDetailPage(props: {
             fluidTherapies={admission.fluidTherapies}
             isDoctor={isDoctor}
             patientName={admission.patient.name}
+            staffName={session.name}
           />
         )}
         {tab === "food" && (

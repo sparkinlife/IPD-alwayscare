@@ -33,6 +33,7 @@ interface MedCheckoffProps {
   administration?: Administration | null;
   isDoctor?: boolean;
   patientName: string;
+  staffName?: string;
 }
 
 const ROUTE_ABBR: Record<string, string> = {
@@ -55,6 +56,7 @@ export function MedCheckoff({
   administration,
   isDoctor,
   patientName,
+  staffName,
 }: MedCheckoffProps) {
   const [optimisticAdmin, setOptimisticAdmin] = useState<
     Administration | null | undefined
@@ -80,14 +82,14 @@ export function MedCheckoff({
 
   async function handleProofComplete(proofs: ProofFile[]) {
     setCheckLoading(true);
-    // Optimistic update
+    // Optimistic update — include staff name immediately
     setOptimisticAdmin({
       id: "optimistic",
       wasAdministered: true,
       wasSkipped: false,
       skipReason: null,
       actualTime: new Date(),
-      administeredBy: null,
+      administeredBy: staffName ? { name: staffName } : null,
     });
     try {
       const result = await administerDose(
@@ -100,8 +102,19 @@ export function MedCheckoff({
         setOptimisticAdmin(administration);
       } else {
         toast.success("Dose administered");
-        // Save proofs with the REAL administration ID from the action response
         const recordId = (result as { id?: string })?.id;
+        // Update optimistic state with REAL ID so undo button shows immediately
+        if (recordId) {
+          setOptimisticAdmin({
+            id: recordId,
+            wasAdministered: true,
+            wasSkipped: false,
+            skipReason: null,
+            actualTime: new Date(),
+            administeredBy: staffName ? { name: staffName } : null,
+          });
+        }
+        // Save proofs with the REAL administration ID
         if (recordId && proofs.length > 0) {
           const proofResult = await saveProofAttachments(recordId, "MedicationAdministration", "MEDS", proofs);
           if (proofResult && "error" in proofResult && proofResult.error) {
@@ -125,7 +138,7 @@ export function MedCheckoff({
       wasSkipped: false,
       skipReason: null,
       actualTime: new Date(),
-      administeredBy: null,
+      administeredBy: staffName ? { name: staffName } : null,
     });
     try {
       const result = await administerDose(
@@ -138,9 +151,17 @@ export function MedCheckoff({
         setOptimisticAdmin(administration);
       } else {
         toast.success("Dose administered");
-        // Save skipped proof with the REAL administration ID from the action response
         const recordId = (result as { id?: string })?.id;
+        // Update with real ID so undo shows immediately
         if (recordId) {
+          setOptimisticAdmin({
+            id: recordId,
+            wasAdministered: true,
+            wasSkipped: false,
+            skipReason: null,
+            actualTime: new Date(),
+            administeredBy: staffName ? { name: staffName } : null,
+          });
           const proofResult = await saveSkippedProof(recordId, "MedicationAdministration", "MEDS", reason);
           if (proofResult && "error" in proofResult && proofResult.error) {
             toast.warning("Action recorded but proof save failed — please retry upload");

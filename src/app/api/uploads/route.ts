@@ -1,3 +1,12 @@
+/**
+ * @deprecated For proof uploads, use the chunked resumable upload system instead:
+ *   POST /api/upload/init  — initialise a Google Drive resumable upload session
+ *   PUT  /api/upload/chunk — proxy one 3 MB chunk to Google Drive
+ *
+ * This route buffers the entire file in memory and will exceed Vercel's 4.5 MB
+ * body limit for anything larger than ~4 MB. It is kept here only for the
+ * patient-registration photo upload, which sends small profile pictures.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { uploadToGoogleDrive, uploadToGoogleDriveNested } from "@/lib/google-drive";

@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { buildDriveFolderPath, buildDriveFileName } from "@/lib/drive-path";
+import { uploadFileChunked } from "@/lib/chunked-upload";
 
 export interface ProofFile {
   fileUrl: string;
@@ -109,33 +110,30 @@ export function ProofUploadDialog({
         setUploadProgress(`Uploading ${i + 1} of ${selectedFiles.length}...`);
 
         try {
-          const fileName = buildDriveFileName(category, actionLabel);
+          const baseName = buildDriveFileName(category, actionLabel);
           const ext = file.name.split(".").pop() ?? "";
-          const fullFileName = ext ? `${fileName}.${ext}` : fileName;
+          const fullFileName = ext ? `${baseName}.${ext}` : baseName;
 
-          const formData = new FormData();
-          formData.set("file", file, file.name);
-          formData.set("folderPath", JSON.stringify(folderPath));
+          const result = await uploadFileChunked(
+            file,
+            folderPath,
+            fullFileName,
+            (percent) =>
+              setUploadProgress(
+                `Uploading ${i + 1}/${selectedFiles.length}: ${percent}%`
+              )
+          );
 
-          const res = await fetch("/api/uploads", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.fileId && data.shareableLink) {
-              proofs.push({
-                fileUrl: data.shareableLink,
-                fileId: data.fileId,
-                fileName: fullFileName,
-              });
-            }
-            // If Google Drive not configured, data.fileId is null — skip silently
+          if (result.fileId && result.shareableLink) {
+            proofs.push({
+              fileUrl: result.shareableLink,
+              fileId: result.fileId,
+              fileName: result.fileName,
+            });
           }
-          // If upload fails for a single file, continue with others
+          // If Google Drive not configured, shareableLink will be empty — skip silently
         } catch {
-          // Individual file upload failure — continue
+          // Individual file upload failure — continue with remaining files
         }
       }
 

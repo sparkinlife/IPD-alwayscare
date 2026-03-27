@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { formatDateTimeIST, formatRelative } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { ProofUploadDialog, type ProofFile } from "@/components/ui/proof-upload-dialog";
+import { saveProofAttachments, saveSkippedProof } from "@/actions/proof";
 import {
   Select,
   SelectContent,
@@ -71,6 +73,7 @@ interface IsolationTabProps {
   isolationProtocol: IsolationProtocol;
   labResults: LabResult[];
   isDoctor: boolean;
+  patientName?: string;
 }
 
 // ─── PCR Status Badge ─────────────────────────────────────────────────────────
@@ -329,12 +332,16 @@ function EditIsolationSheet({
 function DisinfectionSection({
   protocol,
   isDoctor,
+  patientName,
 }: {
   protocol: IsolationProtocol;
   isDoctor: boolean;
+  patientName?: string;
 }) {
   const [loggingId, setLoggingId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [proofDialogOpen, setProofDialogOpen] = useState(false);
+  const [lastLogId, setLastLogId] = useState<string | null>(null);
   const recentLogs = protocol.disinfectionLogs.slice(0, 3);
   const hasMore = protocol.disinfectionLogs.length > 3;
 
@@ -346,11 +353,26 @@ function DisinfectionSection({
         toast.error(result.error);
       } else {
         toast.success("Disinfection logged");
+        const logId = (result as { id?: string })?.id ?? protocol.id;
+        setLastLogId(logId);
+        setProofDialogOpen(true);
       }
     } catch {
       toast.error("Failed to log disinfection");
     } finally {
       setLoggingId(null);
+    }
+  }
+
+  function handleProofComplete(proofs: ProofFile[]) {
+    if (lastLogId && proofs.length > 0) {
+      saveProofAttachments(lastLogId, "DisinfectionLog", "DISINFECTION", proofs).catch(() => {});
+    }
+  }
+
+  function handleProofSkip(reason: string) {
+    if (lastLogId) {
+      saveSkippedProof(lastLogId, "DisinfectionLog", "DISINFECTION", reason).catch(() => {});
     }
   }
 
@@ -381,6 +403,16 @@ function DisinfectionSection({
           {loggingId === protocol.id ? "Logging..." : "Log Disinfection"}
         </Button>
       </div>
+
+      <ProofUploadDialog
+        open={proofDialogOpen}
+        onOpenChange={setProofDialogOpen}
+        onComplete={handleProofComplete}
+        onSkip={handleProofSkip}
+        patientName={patientName ?? "Patient"}
+        category="DISINFECTION"
+        actionLabel={`Disinfection with ${protocol.disinfectant}`}
+      />
 
       {protocol.disinfectionLogs.length === 0 ? (
         <p className="text-xs text-red-500">No disinfections logged yet</p>
@@ -461,6 +493,7 @@ export function IsolationTab({
   isolationProtocol,
   labResults,
   isDoctor,
+  patientName,
 }: IsolationTabProps) {
   const pcrLabResults = labResults.filter((r) => r.testType === "PCR");
   const [editProtocolOpen, setEditProtocolOpen] = useState(false);
@@ -594,7 +627,7 @@ export function IsolationTab({
       </div>
 
       {/* Disinfection section */}
-      <DisinfectionSection protocol={isolationProtocol} isDoctor={isDoctor} />
+      <DisinfectionSection protocol={isolationProtocol} isDoctor={isDoctor} patientName={patientName} />
 
       {/* Edit Isolation Protocol Sheet */}
       {isDoctor && (

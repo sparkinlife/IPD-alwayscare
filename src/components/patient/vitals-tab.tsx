@@ -358,7 +358,7 @@ export function VitalsTab({ admissionId, vitals, isDoctor, admissionWeight, pati
 
       {/* Record Vitals button */}
       <div className="pt-2">
-        <VitalsForm admissionId={admissionId} lastVitals={latest} />
+        <VitalsForm admissionId={admissionId} lastVitals={latest} patientName={patientName} />
       </div>
 
       {/* Edit Vitals Sheet */}

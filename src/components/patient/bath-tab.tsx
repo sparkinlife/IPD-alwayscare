@@ -15,7 +15,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ProofUploadDialog, type ProofFile } from "@/components/ui/proof-upload-dialog";
 import { logBath, updateBath, deleteBath } from "@/actions/baths";
+import { saveProofAttachments, saveSkippedProof } from "@/actions/proof";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,6 +34,7 @@ interface BathTabProps {
   bathLogs: BathLog[];
   admissionDate: Date;
   isDoctor?: boolean;
+  patientName?: string;
 }
 
 // ─── Bath Status Banner ───────────────────────────────────────────────────────
@@ -94,22 +97,36 @@ function BathStatusBanner({
 
 // ─── Log Bath Sheet ───────────────────────────────────────────────────────────
 
-function LogBathSheet({ admissionId }: { admissionId: string }) {
+function LogBathSheet({ admissionId, patientName }: { admissionId: string; patientName?: string }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [proofDialogOpen, setProofDialogOpen] = useState(false);
+  const [pendingNotes, setPendingNotes] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Store notes and open proof dialog
+    setPendingNotes(notes);
+    setProofDialogOpen(true);
+  }
+
+  async function submitWithProof(proofs: ProofFile[], skipReason?: string) {
     setLoading(true);
     try {
       const formData = new FormData();
-      if (notes) formData.set("notes", notes);
+      if (pendingNotes) formData.set("notes", pendingNotes);
       const result = await logBath(admissionId, formData);
       if (result && "error" in result && result.error) {
         toast.error(result.error);
       } else {
         toast.success("Bath logged successfully");
+        const bathId = (result as { id?: string })?.id ?? admissionId;
+        if (proofs.length > 0) {
+          saveProofAttachments(bathId, "BathLog", "BATH", proofs).catch(() => {});
+        } else if (skipReason) {
+          saveSkippedProof(bathId, "BathLog", "BATH", skipReason).catch(() => {});
+        }
         setNotes("");
         setOpen(false);
       }
@@ -120,57 +137,77 @@ function LogBathSheet({ admissionId }: { admissionId: string }) {
     }
   }
 
+  function handleProofComplete(proofs: ProofFile[]) {
+    submitWithProof(proofs);
+  }
+
+  function handleProofSkip(reason: string) {
+    submitWithProof([], reason);
+  }
+
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) setNotes("");
-      }}
-    >
-      <SheetTrigger
-        render={
-          <Button size="sm" className="gap-1.5" />
-        }
+    <>
+      <Sheet
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setNotes("");
+        }}
       >
-        <Droplets className="h-4 w-4" />
-        Log Bath
-      </SheetTrigger>
-      <SheetContent side="bottom" className="pb-8">
-        <SheetHeader>
-          <SheetTitle>Log Bath</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4 px-1">
-          <div className="space-y-1.5">
-            <Label htmlFor="bath-notes">Notes (optional)</Label>
-            <Textarea
-              id="bath-notes"
-              rows={3}
-              placeholder="Any observations, shampoo used, condition of coat..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => {
-                setOpen(false);
-                setNotes("");
-              }}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? "Saving..." : "Confirm Bath"}
-            </Button>
-          </div>
-        </form>
-      </SheetContent>
-    </Sheet>
+        <SheetTrigger
+          render={
+            <Button size="sm" className="gap-1.5" />
+          }
+        >
+          <Droplets className="h-4 w-4" />
+          Log Bath
+        </SheetTrigger>
+        <SheetContent side="bottom" className="pb-8">
+          <SheetHeader>
+            <SheetTitle>Log Bath</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4 px-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="bath-notes">Notes (optional)</Label>
+              <Textarea
+                id="bath-notes"
+                rows={3}
+                placeholder="Any observations, shampoo used, condition of coat..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setOpen(false);
+                  setNotes("");
+                }}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? "Saving..." : "Next: Upload Proof"}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <ProofUploadDialog
+        open={proofDialogOpen}
+        onOpenChange={setProofDialogOpen}
+        onComplete={handleProofComplete}
+        onSkip={handleProofSkip}
+        patientName={patientName ?? "Patient"}
+        category="BATH"
+        actionLabel="Bath completed"
+      />
+    </>
   );
 }
 
@@ -299,6 +336,7 @@ export function BathTab({
   bathLogs,
   admissionDate,
   isDoctor,
+  patientName,
 }: BathTabProps) {
   const lastBathLog = bathLogs[0] ?? null;
   const lastBathDate = lastBathLog ? lastBathLog.bathedAt : null;
@@ -332,7 +370,7 @@ export function BathTab({
               : "No bath logged yet"}
           </p>
         </div>
-        <LogBathSheet admissionId={admissionId} />
+        <LogBathSheet admissionId={admissionId} patientName={patientName} />
       </div>
 
       {/* Bath history */}

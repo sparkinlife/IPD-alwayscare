@@ -137,6 +137,7 @@ model Staff {
   fluidTherapiesCreated   FluidTherapy[]           @relation("createdByStaff")
   labResultsCreated       LabResult[]
   isolationProtocolsCreated IsolationProtocol[]     @relation("createdByStaff")
+  proofAttachments        ProofAttachment[]
 }
 
 model Session {
@@ -455,4 +456,20 @@ model AlertLog {
   sentAt      DateTime @default(now())
 
   @@index([admissionId, alertType, sentAt])
+}
+
+model ProofAttachment {
+  id           String   @id @default(cuid())
+  category     String
+  recordId     String
+  recordType   String
+  fileUrl      String
+  fileId       String
+  fileName     String
+  skipReason   String?
+  uploadedById String
+  uploadedBy   Staff    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([recordId, recordType])
 }

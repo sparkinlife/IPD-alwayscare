@@ -52,6 +52,7 @@ interface FoodTabProps {
   admissionId: string;
   dietPlans: DietPlan[];
   isDoctor: boolean;
+  patientName?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -354,9 +355,11 @@ function DietPlanSheet({
 function FeedingRow({
   schedule,
   today,
+  patientName,
 }: {
   schedule: FeedingSchedule;
   today: string;
+  patientName?: string;
 }) {
   const todayLog = getTodayLog(schedule, today);
   const status = todayLog?.status ?? "PENDING";
@@ -422,6 +425,7 @@ function FeedingRow({
         portion={schedule.portion}
         currentStatus={displayStatus}
         onLogged={handleLogged}
+        patientName={patientName}
       />
     </>
   );
@@ -545,7 +549,7 @@ function FeedingHistory({ dietPlans, isDoctor }: { dietPlans: DietPlan[]; isDoct
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function FoodTab({ admissionId, dietPlans, isDoctor }: FoodTabProps) {
+export function FoodTab({ admissionId, dietPlans, isDoctor, patientName }: FoodTabProps) {
   const today = getTodayIST();
   const activePlan = dietPlans.find((p) => p.isActive) ?? null;
   const todaySchedules = activePlan?.feedingSchedules ?? [];
@@ -615,7 +619,7 @@ export function FoodTab({ admissionId, dietPlans, isDoctor }: FoodTabProps) {
             .slice()
             .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime))
             .map((schedule) => (
-              <FeedingRow key={schedule.id} schedule={schedule} today={today} />
+              <FeedingRow key={schedule.id} schedule={schedule} today={today} patientName={patientName} />
             ))}
         </div>
       )}

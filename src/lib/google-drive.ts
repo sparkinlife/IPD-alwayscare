@@ -61,3 +61,49 @@ export async function uploadToGoogleDrive(
     shareableLink: uploaded.data.webViewLink!,
   };
 }
+
+export async function uploadToGoogleDriveNested(
+  file: Buffer,
+  fileName: string,
+  mimeType: string,
+  folderPath: string[]
+): Promise<{ fileId: string; shareableLink: string }> {
+  const auth = getAuth();
+  const drive = google.drive({ version: "v3", auth });
+
+  let parentId = process.env.GOOGLE_DRIVE_FOLDER_ID!;
+
+  // Create nested folder structure
+  for (const segment of folderPath) {
+    const safeName = segment.replace(/'/g, "\\'");
+    const query = await drive.files.list({
+      q: `name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: "files(id)",
+    });
+
+    if (query.data.files && query.data.files.length > 0) {
+      parentId = query.data.files[0].id!;
+    } else {
+      const folder = await drive.files.create({
+        requestBody: { name: segment, mimeType: "application/vnd.google-apps.folder", parents: [parentId] },
+        fields: "id",
+      });
+      parentId = folder.data.id!;
+    }
+  }
+
+  // Upload file
+  const { Readable } = await import("stream");
+  const uploaded = await drive.files.create({
+    requestBody: { name: fileName, parents: [parentId] },
+    media: { mimeType, body: Readable.from(file) },
+    fields: "id, webViewLink",
+  });
+
+  await drive.permissions.create({
+    fileId: uploaded.data.id!,
+    requestBody: { role: "reader", type: "anyone" },
+  });
+
+  return { fileId: uploaded.data.id!, shareableLink: uploaded.data.webViewLink! };
+}

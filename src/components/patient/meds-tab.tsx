@@ -93,6 +93,7 @@ interface MedsTabProps {
   treatmentPlans: TreatmentPlan[];
   fluidTherapies: FluidTherapy[];
   isDoctor: boolean;
+  patientName: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -544,6 +545,7 @@ export function MedsTab({
   treatmentPlans,
   fluidTherapies,
   isDoctor,
+  patientName,
 }: MedsTabProps) {
   const [stoppedOpen, setStoppedOpen] = useState(false);
   const [editPlan, setEditPlan] = useState<TreatmentPlan | null>(null);
@@ -640,6 +642,7 @@ export function MedsTab({
                   scheduledTime={slot.scheduledTime}
                   administration={slot.administration}
                   isDoctor={isDoctor}
+                  patientName={patientName}
                 />
               ))}
             </div>

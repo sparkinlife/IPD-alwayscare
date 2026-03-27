@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { administerDose, undoAdministration } from "@/actions/medications";
+import { saveProofAttachments, saveSkippedProof } from "@/actions/proof";
 import { MedSkipSheet } from "./med-skip-sheet";
+import { ProofUploadDialog, type ProofFile } from "@/components/ui/proof-upload-dialog";
 import { isOverdueByMinutes, formatTimeIST } from "@/lib/date-utils";
 
 interface Administration {
@@ -30,6 +32,7 @@ interface MedCheckoffProps {
   scheduledTime: string;
   administration?: Administration | null;
   isDoctor?: boolean;
+  patientName: string;
 }
 
 const ROUTE_ABBR: Record<string, string> = {
@@ -51,6 +54,7 @@ export function MedCheckoff({
   scheduledTime,
   administration,
   isDoctor,
+  patientName,
 }: MedCheckoffProps) {
   const [optimisticAdmin, setOptimisticAdmin] = useState<
     Administration | null | undefined
@@ -58,6 +62,7 @@ export function MedCheckoff({
   const [checkLoading, setCheckLoading] = useState(false);
   const [undoLoading, setUndoLoading] = useState(false);
   const [skipOpen, setSkipOpen] = useState(false);
+  const [proofDialogOpen, setProofDialogOpen] = useState(false);
 
   const isAdministered = optimisticAdmin?.wasAdministered === true;
   const isSkipped = optimisticAdmin?.wasSkipped === true;
@@ -66,8 +71,13 @@ export function MedCheckoff({
     !isSkipped &&
     isOverdueByMinutes(scheduledTime, 30);
 
-  async function handleCheck() {
+  function handleCheck() {
     if (isAdministered || checkLoading) return;
+    // Open proof dialog instead of immediately calling server
+    setProofDialogOpen(true);
+  }
+
+  async function handleProofComplete(proofs: ProofFile[]) {
     setCheckLoading(true);
     // Optimistic update
     setOptimisticAdmin({
@@ -86,10 +96,47 @@ export function MedCheckoff({
       );
       if (result && "error" in result && result.error) {
         toast.error(result.error);
-        // Revert
         setOptimisticAdmin(administration);
       } else {
         toast.success("Dose administered");
+        // Save proof attachments (fire-and-forget, get the real administration id from revalidation)
+        if (proofs.length > 0) {
+          // We don't have the real ID yet, use treatmentPlanId+date+time as key
+          const syntheticId = `${treatmentPlan.id}:${scheduledDate}:${scheduledTime}`;
+          saveProofAttachments(syntheticId, "MedicationAdministration", "MEDS", proofs).catch(() => {});
+        }
+      }
+    } catch {
+      toast.error("Failed to record dose");
+      setOptimisticAdmin(administration);
+    } finally {
+      setCheckLoading(false);
+    }
+  }
+
+  async function handleProofSkip(reason: string) {
+    setCheckLoading(true);
+    setOptimisticAdmin({
+      id: "optimistic",
+      wasAdministered: true,
+      wasSkipped: false,
+      skipReason: null,
+      actualTime: new Date(),
+      administeredBy: null,
+    });
+    try {
+      const result = await administerDose(
+        treatmentPlan.id,
+        scheduledDate,
+        scheduledTime
+      );
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+        setOptimisticAdmin(administration);
+      } else {
+        toast.success("Dose administered");
+        const syntheticId = `${treatmentPlan.id}:${scheduledDate}:${scheduledTime}`;
+        saveSkippedProof(syntheticId, "MedicationAdministration", "MEDS", reason).catch(() => {});
       }
     } catch {
       toast.error("Failed to record dose");
@@ -100,7 +147,6 @@ export function MedCheckoff({
   }
 
   function handleSkipped() {
-    // After skip, reflect skipped state optimistically; server revalidation takes over
     setOptimisticAdmin({
       id: "optimistic-skip",
       wasAdministered: false,
@@ -135,6 +181,8 @@ export function MedCheckoff({
   else if (isOverdue) rowBg = "bg-red-50 border-red-100";
 
   const routeAbbr = ROUTE_ABBR[treatmentPlan.route] ?? treatmentPlan.route;
+
+  const actionLabel = `${treatmentPlan.drugName} ${treatmentPlan.dose} at ${scheduledTime}`;
 
   return (
     <>
@@ -232,6 +280,17 @@ export function MedCheckoff({
           </div>
         )}
       </div>
+
+      {/* Proof upload dialog */}
+      <ProofUploadDialog
+        open={proofDialogOpen}
+        onOpenChange={setProofDialogOpen}
+        onComplete={handleProofComplete}
+        onSkip={handleProofSkip}
+        patientName={patientName}
+        category="MEDS"
+        actionLabel={actionLabel}
+      />
 
       <MedSkipSheet
         open={skipOpen}

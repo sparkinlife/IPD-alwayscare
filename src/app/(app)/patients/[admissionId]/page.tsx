@@ -140,10 +140,11 @@ export default async function PatientDetailPage(props: {
             treatmentPlans={admission.treatmentPlans}
             fluidTherapies={admission.fluidTherapies}
             isDoctor={isDoctor}
+            patientName={admission.patient.name}
           />
         )}
         {tab === "food" && (
-          <FoodTab admissionId={admissionId} dietPlans={admission.dietPlans} isDoctor={session.role === "DOCTOR"} />
+          <FoodTab admissionId={admissionId} dietPlans={admission.dietPlans} isDoctor={session.role === "DOCTOR"} patientName={admission.patient.name} />
         )}
         {tab === "notes" && (
           <NotesTab admissionId={admissionId} notes={admission.clinicalNotes} isDoctor={isDoctor} />
@@ -152,10 +153,10 @@ export default async function PatientDetailPage(props: {
           <LabsTab admissionId={admissionId} labResults={admission.labResults} isDoctor={isDoctor} />
         )}
         {tab === "bath" && (
-          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} isDoctor={isDoctor} />
+          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} isDoctor={isDoctor} patientName={admission.patient.name} />
         )}
         {tab === "isolation" && admission.isolationProtocol && (
-          <IsolationTab admissionId={admissionId} isolationProtocol={admission.isolationProtocol} labResults={admission.labResults} isDoctor={session.role === "DOCTOR"} />
+          <IsolationTab admissionId={admissionId} isolationProtocol={admission.isolationProtocol} labResults={admission.labResults} isDoctor={session.role === "DOCTOR"} patientName={admission.patient.name} />
         )}
       </div>
 

@@ -212,7 +212,7 @@ export async function deleteMedication(treatmentPlanId: string) {
       where: { treatmentPlanId },
       select: { id: true },
     });
-    const adminIds = administrations.map(a => a.id);
+    const adminIds = administrations.map((a: any) => a.id);
 
     if (adminIds.length > 0) {
       const proofs = await db.proofAttachment.findMany({

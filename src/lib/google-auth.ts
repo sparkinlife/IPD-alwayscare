@@ -6,7 +6,7 @@ export function getGoogleAuth() {
   const credentials = JSON.parse(Buffer.from(key, "base64").toString());
   return new google.auth.GoogleAuth({
     credentials,
-    scopes: ["https://www.googleapis.com/auth/drive.file"],
+    scopes: ["https://www.googleapis.com/auth/drive"],
   });
 }
 

@@ -164,7 +164,7 @@ export async function GET(request: Request) {
   });
 
   const recentSet = new Set(
-    recentAlerts.map((a) => `${a.alertType}:${a.admissionId}`)
+    recentAlerts.map((a: any) => `${a.alertType}:${a.admissionId}`)
   );
   const newAlerts = alerts.filter(
     (a) => !recentSet.has(`${a.type}:${a.admissionId}`)

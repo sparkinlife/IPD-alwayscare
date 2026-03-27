@@ -112,7 +112,7 @@ export default async function PatientDetailPage(props: {
       }),
     ]);
     const occupiedSet = new Set(
-      occupiedCages.map((a) => a.cageNumber).filter(Boolean) as string[]
+      occupiedCages.map((a: any) => a.cageNumber).filter(Boolean) as string[]
     );
     availableCages = allCages
       .filter((c) => !occupiedSet.has(c.cageNumber))

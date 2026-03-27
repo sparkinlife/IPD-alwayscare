@@ -478,7 +478,7 @@ export async function permanentlyDeletePatient(patientId: string) {
     });
     if (!patient) return { error: "Patient not found" };
 
-    const admissionIds = patient.admissions.map((a) => a.id);
+    const admissionIds = patient.admissions.map((a: any) => a.id);
 
     // Prevent deleting patients with active admissions
     const activeAdmissions = await db.admission.findMany({
@@ -493,23 +493,23 @@ export async function permanentlyDeletePatient(patientId: string) {
       const proofTreatmentPlanIds = (await tx.treatmentPlan.findMany({
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
-      })).map((t) => t.id);
+      })).map((t: any) => t.id);
 
       // Proofs for medication administrations are keyed on MedicationAdministration IDs
       const medAdminIds = (await tx.medicationAdministration.findMany({
         where: { treatmentPlanId: { in: proofTreatmentPlanIds } },
         select: { id: true },
-      })).map((a) => a.id);
+      })).map((a: any) => a.id);
 
       const proofVitalIds = (await tx.vitalRecord.findMany({
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
-      })).map((v) => v.id);
+      })).map((v: any) => v.id);
 
       const bathIds = (await tx.bathLog.findMany({
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
-      })).map((b) => b.id);
+      })).map((b: any) => b.id);
 
       const proofFeedingSchedules = await tx.feedingSchedule.findMany({
         where: {
@@ -518,23 +518,23 @@ export async function permanentlyDeletePatient(patientId: string) {
         select: { id: true },
       });
       const feedingLogIds = (await tx.feedingLog.findMany({
-        where: { feedingScheduleId: { in: proofFeedingSchedules.map((s) => s.id) } },
+        where: { feedingScheduleId: { in: proofFeedingSchedules.map((s: any) => s.id) } },
         select: { id: true },
-      })).map((f) => f.id);
+      })).map((f: any) => f.id);
 
       const labIds = (await tx.labResult.findMany({
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
-      })).map((l) => l.id);
+      })).map((l: any) => l.id);
 
       const disinfectionProtos = await tx.isolationProtocol.findMany({
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
       });
       const disinfectionIds = (await tx.disinfectionLog.findMany({
-        where: { isolationProtocolId: { in: disinfectionProtos.map((p) => p.id) } },
+        where: { isolationProtocolId: { in: disinfectionProtos.map((p: any) => p.id) } },
         select: { id: true },
-      })).map((d) => d.id);
+      })).map((d: any) => d.id);
 
       const allRecordIds = [
         ...medAdminIds,
@@ -567,7 +567,7 @@ export async function permanentlyDeletePatient(patientId: string) {
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
       });
-      const isolationIds = isolationProtocols.map((p) => p.id);
+      const isolationIds = isolationProtocols.map((p: any) => p.id);
       await tx.disinfectionLog.deleteMany({ where: { isolationProtocolId: { in: isolationIds } } });
 
       // 2. IsolationProtocol
@@ -578,7 +578,7 @@ export async function permanentlyDeletePatient(patientId: string) {
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
       });
-      const treatmentPlanIds = treatmentPlans.map((p) => p.id);
+      const treatmentPlanIds = treatmentPlans.map((p: any) => p.id);
       await tx.medicationAdministration.deleteMany({ where: { treatmentPlanId: { in: treatmentPlanIds } } });
 
       // 4. TreatmentPlan
@@ -589,7 +589,7 @@ export async function permanentlyDeletePatient(patientId: string) {
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
       });
-      const fluidTherapyIds = fluidTherapies.map((f) => f.id);
+      const fluidTherapyIds = fluidTherapies.map((f: any) => f.id);
       await tx.fluidRateChange.deleteMany({ where: { fluidTherapyId: { in: fluidTherapyIds } } });
 
       // 6. FluidTherapy
@@ -600,12 +600,12 @@ export async function permanentlyDeletePatient(patientId: string) {
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
       });
-      const dietPlanIds = dietPlans.map((d) => d.id);
+      const dietPlanIds = dietPlans.map((d: any) => d.id);
       const feedingSchedules = await tx.feedingSchedule.findMany({
         where: { dietPlanId: { in: dietPlanIds } },
         select: { id: true },
       });
-      const feedingScheduleIds = feedingSchedules.map((s) => s.id);
+      const feedingScheduleIds = feedingSchedules.map((s: any) => s.id);
       await tx.feedingLog.deleteMany({ where: { feedingScheduleId: { in: feedingScheduleIds } } });
 
       // 8. FeedingSchedule

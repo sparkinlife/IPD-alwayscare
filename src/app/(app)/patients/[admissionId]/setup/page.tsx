@@ -37,7 +37,7 @@ export default async function ClinicalSetupPage({
   ]);
 
   const occupiedSet = new Set(
-    occupiedCages.map((a) => a.cageNumber).filter(Boolean) as string[]
+    occupiedCages.map((a: any) => a.cageNumber).filter(Boolean) as string[]
   );
   const availableCages = cages.filter((c) => !occupiedSet.has(c.cageNumber));
 

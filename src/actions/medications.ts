@@ -104,10 +104,11 @@ export async function administerDose(
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true },
+      select: { admissionId: true, isActive: true, deletedAt: true },
     });
 
     if (!plan) return { error: "Treatment plan not found" };
+    if (!plan.isActive || plan.deletedAt) return { error: "Treatment plan is no longer active" };
 
     const scheduledDateObj = toUTCDate(scheduledDate);
 
@@ -290,10 +291,11 @@ export async function skipDose(
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true },
+      select: { admissionId: true, isActive: true, deletedAt: true },
     });
 
     if (!plan) return { error: "Treatment plan not found" };
+    if (!plan.isActive || plan.deletedAt) return { error: "Treatment plan is no longer active" };
 
     const scheduledDateObj = toUTCDate(scheduledDate);
 

@@ -327,7 +327,7 @@ export async function updatePatient(patientId: string, formData: FormData) {
     const weight = weightStr ? parseFloat(weightStr) : null;
     const sex = formData.get("sex") as string;
     const color = (formData.get("color") as string) || null;
-    const isStray = formData.get("isStray") === "true";
+    const isStray = formData.has("isStray");
     const rescueLocation = (formData.get("rescueLocation") as string) || null;
     const rescuerInfo = (formData.get("rescuerInfo") as string) || null;
 
@@ -437,13 +437,13 @@ export async function restorePatient(patientId: string) {
         data: { deletedAt: null },
       });
       await tx.admission.updateMany({
-        where: { patientId, status: { in: ["ACTIVE", "REGISTERED"] } },
+        where: { patientId, deletedAt: { not: null } },
         data: { deletedAt: null },
       });
 
       // Add a clinical note on each restored admission reminding doctor to re-prescribe
       const admissions = await tx.admission.findMany({
-        where: { patientId, status: { in: ["ACTIVE", "REGISTERED"] } },
+        where: { patientId, deletedAt: null },
         select: { id: true },
       });
       for (const adm of admissions) {
@@ -470,7 +470,7 @@ export async function restorePatient(patientId: string) {
 export async function permanentlyDeletePatient(patientId: string) {
   try {
     const session = await requireAuth();
-    if (session.role !== "ADMIN") return { error: "Forbidden: Admin only" };
+    if (session.role !== "ADMIN") throw new Error("Forbidden: Admin only");
 
     const patient = await db.patient.findUnique({
       where: { id: patientId },

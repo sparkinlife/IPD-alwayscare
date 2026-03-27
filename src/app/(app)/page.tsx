@@ -98,9 +98,13 @@ export default async function DashboardPage({
     return (
       sum +
       a.dietPlans.reduce((planSum, plan) => {
-        const upcoming = plan.feedingSchedules.filter(
-          (s) => s.scheduledTime >= nowTimeStr && s.scheduledTime <= laterTimeStr
-        ).length;
+        const upcoming = plan.feedingSchedules.filter((s) => {
+          if (laterTimeStr < nowTimeStr) {
+            // Crosses midnight: show feedings from now to midnight OR midnight to laterTime
+            return s.scheduledTime >= nowTimeStr || s.scheduledTime <= laterTimeStr;
+          }
+          return s.scheduledTime >= nowTimeStr && s.scheduledTime <= laterTimeStr;
+        }).length;
         return planSum + upcoming;
       }, 0)
     );

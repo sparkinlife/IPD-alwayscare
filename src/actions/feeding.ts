@@ -86,10 +86,20 @@ export async function logFeeding(feedingScheduleId: string, formData: FormData) 
     // Find the feeding schedule to get admissionId for revalidation
     const feedingSchedule = await db.feedingSchedule.findUnique({
       where: { id: feedingScheduleId },
-      select: { dietPlan: { select: { admissionId: true } } },
+      select: {
+        dietPlan: {
+          select: {
+            admissionId: true,
+            isActive: true,
+            admission: { select: { deletedAt: true } }
+          }
+        }
+      },
     });
 
     if (!feedingSchedule) return { error: "Feeding schedule not found" };
+    if (!feedingSchedule.dietPlan.isActive) return { error: "Diet plan is no longer active" };
+    if (feedingSchedule.dietPlan.admission.deletedAt) return { error: "Admission not found" };
 
     // Upsert feeding log for today
     const feedingLog = await db.feedingLog.upsert({

@@ -82,7 +82,9 @@ export async function requireAuth() {
 
 export async function requireDoctor() {
   const session = await requireAuth();
-  if (session.role !== "DOCTOR") throw new Error("Forbidden: Doctor only");
+  if (session.role !== "DOCTOR" && session.role !== "ADMIN") {
+    throw new Error("Forbidden: Doctor or Admin only");
+  }
   return session;
 }
 

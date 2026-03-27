@@ -49,6 +49,7 @@ export const CONDITION_CONFIG: Record<string, { label: string; color: string; bg
   STABLE: { label: "Stable", color: "text-clinic-green", bg: "bg-clinic-green-light", border: "border-green-200" },
   IMPROVING: { label: "Improving", color: "text-clinic-blue", bg: "bg-clinic-blue-light", border: "border-blue-200" },
   RECOVERED: { label: "Recovered", color: "text-clinic-green", bg: "bg-clinic-green-light", border: "border-green-200" },
+  DECEASED: { label: "Deceased", color: "text-gray-500", bg: "bg-gray-100", border: "border-gray-300" },
 };
 
 export const WARD_CONFIG: Record<string, { label: string; color: string; bg: string }> = {

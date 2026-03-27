@@ -134,9 +134,8 @@ function EditPatientSheet({
             <Input id="ep-color" name="color" defaultValue={patient.color ?? ""} className="h-12" />
           </div>
           <div className="flex items-center gap-3">
-            <input type="hidden" name="isStray" value="false" />
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="isStray" value="true" defaultChecked={patient.isStray} className="h-4 w-4 rounded border-gray-300" />
+              <input type="checkbox" name="isStray" defaultChecked={patient.isStray} className="h-4 w-4 rounded border-gray-300" />
               <span className="text-sm">Stray animal</span>
             </label>
           </div>

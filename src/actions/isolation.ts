@@ -44,7 +44,7 @@ export async function updateIsolationProtocol(
 
     const pcrStatus = formData.get("pcrStatus") as string;
     const pcrTrend = (formData.get("pcrTrend") as string) || undefined;
-    const isCleared = formData.get("isCleared") === "true";
+    const isClearedValue = formData.get("isCleared");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
@@ -58,9 +58,12 @@ export async function updateIsolationProtocol(
     }
 
     if (pcrTrend) data.pcrTrend = pcrTrend;
-    if (isCleared) {
+    if (isClearedValue === "true") {
       data.isCleared = true;
       data.clearedDate = new Date();
+    } else if (isClearedValue === "false") {
+      data.isCleared = false;
+      data.clearedDate = null;
     }
 
     const protocol = await db.isolationProtocol.update({

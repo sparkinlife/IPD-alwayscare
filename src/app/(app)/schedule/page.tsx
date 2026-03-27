@@ -71,6 +71,7 @@ interface HourGroup {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const SCHEDULE_HOURS = [
+  "00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
   "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
   "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
   "18:00", "19:00", "20:00", "21:00", "22:00", "23:00",
@@ -81,8 +82,6 @@ function getHourBucket(scheduledTime: string): string {
   const [hh] = scheduledTime.split(":").map(Number);
   // Round to the nearest schedule hour
   const bucket = `${String(hh).padStart(2, "0")}:00`;
-  // If not in schedule range, fall back to first/last
-  if (hh < 6) return "06:00";
   if (hh > 23) return "23:00";
   return bucket;
 }

@@ -29,8 +29,9 @@ export default async function PatientDetailPage(props: {
   const isDoctor = session.role === "DOCTOR";
 
   // Compute IST-aware "today" for filtering administrations and feeding logs
-  
+
   const today = getTodayUTCDate();
+  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const admission = await db.admission.findUnique({
     where: { id: admissionId, deletedAt: null },
@@ -67,7 +68,7 @@ export default async function PatientDetailPage(props: {
       dietPlans: {
         where: { deletedAt: null },
         include: {
-          feedingSchedules: { include: { feedingLogs: { where: { date: today }, orderBy: { date: "desc" }, include: { loggedBy: { select: { name: true } } } } } },
+          feedingSchedules: { include: { feedingLogs: { where: { date: { gte: sevenDaysAgo } }, orderBy: { date: "desc" }, include: { loggedBy: { select: { name: true } } } } } },
           createdBy: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -106,7 +107,7 @@ export default async function PatientDetailPage(props: {
         orderBy: { cageNumber: "asc" },
       }),
       db.admission.findMany({
-        where: { status: "ACTIVE", id: { not: admissionId } },
+        where: { status: "ACTIVE", deletedAt: null, id: { not: admissionId } },
         select: { cageNumber: true },
       }),
     ]);

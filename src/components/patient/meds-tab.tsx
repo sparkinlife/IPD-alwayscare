@@ -5,6 +5,7 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTodayIST, isOverdueByMinutes, formatDateTimeIST } from "@/lib/date-utils";
+import { formatInTimeZone } from "date-fns-tz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,10 +166,11 @@ function getGroupStatus(
   );
   if (hasOverdue) return "overdue";
 
-  const now = new Date();
+  const nowIST = formatInTimeZone(new Date(), "Asia/Kolkata", "HH:mm");
+  const [hNow, mNow] = nowIST.split(":").map(Number);
+  const nowMinutes = hNow * 60 + mNow;
   const [hh, mm] = group.time.split(":").map(Number);
   const scheduledMinutes = hh * 60 + mm;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
   if (Math.abs(scheduledMinutes - nowMinutes) <= 60) return "current";
 
   return "upcoming";

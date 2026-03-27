@@ -14,8 +14,9 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "50mb",
     },
+    middlewareClientMaxBodySize: "50mb",
+    proxyClientMaxBodySize: "50mb",
   },
-  middlewareClientMaxBodySize: 50 * 1024 * 1024, // 50MB for file uploads through proxy
 
 };
 

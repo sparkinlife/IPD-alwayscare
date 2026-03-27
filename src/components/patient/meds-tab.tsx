@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTodayIST, isOverdueByMinutes } from "@/lib/date-utils";
+import { getTodayIST, isOverdueByMinutes, formatDateTimeIST } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -540,6 +540,64 @@ function EditMedSheet({
   );
 }
 
+// ─── Completed Fluids ─────────────────────────────────────────────────────────
+
+function CompletedFluids({ fluids }: { fluids: FluidTherapy[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 mb-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+      >
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Completed IV Fluids ({fluids.length})
+        </span>
+        <ChevronDown
+          className={cn("h-4 w-4 text-gray-400 transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-gray-200 px-4 py-2 space-y-2">
+          {fluids.map((f) => (
+            <div key={f.id} className="rounded-md border border-gray-100 bg-white px-3 py-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    {f.fluidType} @ {f.rate}
+                  </p>
+                  {f.additives && (
+                    <p className="text-xs text-gray-500">Additives: {f.additives}</p>
+                  )}
+                  <p className="text-xs text-gray-400">
+                    Started: {formatDateTimeIST(new Date(f.startTime))}
+                    {f.endTime && ` → Stopped: ${formatDateTimeIST(new Date(f.endTime))}`}
+                  </p>
+                  <p className="text-xs text-gray-300">By {f.createdBy.name}</p>
+                </div>
+              </div>
+              {f.rateChanges.length > 0 && (
+                <div className="mt-1.5 border-t border-gray-100 pt-1.5">
+                  <p className="text-xs font-medium text-gray-400 mb-1">Rate changes:</p>
+                  {f.rateChanges.map((rc) => (
+                    <p key={rc.id} className="text-xs text-gray-400">
+                      {rc.oldRate} → {rc.newRate}
+                      {rc.reason && ` (${rc.reason})`}
+                      {" · "}{rc.changedBy.name}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MedsTab({
@@ -565,6 +623,7 @@ export function MedsTab({
   }
 
   const activeFluid = fluidTherapies.find((f) => f.isActive) ?? null;
+  const stoppedFluids = fluidTherapies.filter((f) => !f.isActive);
   const activePlans = treatmentPlans.filter((p) => p.isActive);
   const stoppedPlans = treatmentPlans.filter((p) => !p.isActive);
 
@@ -603,6 +662,11 @@ export function MedsTab({
 
       {/* Start Fluids button (doctor, no active fluid) */}
       {isDoctor && !activeFluid && <StartFluidsButton admissionId={admissionId} />}
+
+      {/* Completed Fluid Therapies */}
+      {stoppedFluids.length > 0 && (
+        <CompletedFluids fluids={stoppedFluids} />
+      )}
 
       {/* Medications header */}
       <div className="flex items-center justify-between mb-3">

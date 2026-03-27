@@ -226,19 +226,18 @@ export function MedCheckoff({
           </span>
         </button>
 
-        {/* Med info — tap to open skip sheet or proof viewer */}
+        {/* Med info — tap to view proofs if completed */}
         <button
           type="button"
           onClick={() => {
             if (isAdministered || isSkipped) {
               setProofViewOpen(true);
-            } else {
-              setSkipOpen(true);
             }
           }}
+          disabled={!isAdministered && !isSkipped}
           className={cn(
             "flex min-w-0 flex-1 flex-col text-left",
-            "cursor-pointer"
+            (isAdministered || isSkipped) ? "cursor-pointer" : "cursor-default"
           )}
         >
           <span
@@ -279,6 +278,18 @@ export function MedCheckoff({
             </span>
           )}
         </button>
+
+        {/* Skip button — only on pending/overdue meds */}
+        {!isAdministered && !isSkipped && (
+          <button
+            type="button"
+            onClick={() => setSkipOpen(true)}
+            disabled={checkLoading}
+            className="flex-shrink-0 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 active:scale-95 disabled:opacity-50"
+          >
+            Skip
+          </button>
+        )}
 
         {/* Undo button (doctor only) */}
         {isDoctor && (isAdministered || isSkipped) && optimisticAdmin && !optimisticAdmin.id.startsWith("optimistic") && (

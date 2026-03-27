@@ -43,6 +43,7 @@ interface ScheduleMedRowProps {
   patientName: string;
   ward: string;
   cageNumber: string | null;
+  staffName?: string;
 }
 
 const ROUTE_ABBR: Record<string, string> = {
@@ -68,6 +69,7 @@ export function ScheduleMedRow({
   patientName,
   ward,
   cageNumber,
+  staffName,
 }: ScheduleMedRowProps) {
   const [optimisticAdmin, setOptimisticAdmin] = useState<
     Administration | null | undefined
@@ -99,7 +101,7 @@ export function ScheduleMedRow({
       wasSkipped: false,
       skipReason: null,
       actualTime: new Date(),
-      administeredBy: null,
+      administeredBy: staffName ? { name: staffName } : null,
     });
     try {
       const result = await administerDose(treatmentPlan.id, scheduledDate, scheduledTime);
@@ -116,7 +118,7 @@ export function ScheduleMedRow({
             wasSkipped: false,
             skipReason: null,
             actualTime: new Date(),
-            administeredBy: null,
+            administeredBy: staffName ? { name: staffName } : null,
           });
           if (proofs.length > 0) {
             await saveProofAttachments(recordId, "MedicationAdministration", "MEDS", proofs);
@@ -139,7 +141,7 @@ export function ScheduleMedRow({
       wasSkipped: false,
       skipReason: null,
       actualTime: new Date(),
-      administeredBy: null,
+      administeredBy: staffName ? { name: staffName } : null,
     });
     try {
       const result = await administerDose(treatmentPlan.id, scheduledDate, scheduledTime);
@@ -156,7 +158,7 @@ export function ScheduleMedRow({
             wasSkipped: false,
             skipReason: null,
             actualTime: new Date(),
-            administeredBy: null,
+            administeredBy: staffName ? { name: staffName } : null,
           });
           await saveSkippedProof(recordId, "MedicationAdministration", "MEDS", reason);
         }

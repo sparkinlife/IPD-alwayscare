@@ -437,13 +437,13 @@ export async function restorePatient(patientId: string) {
         data: { deletedAt: null },
       });
       await tx.admission.updateMany({
-        where: { patientId },
+        where: { patientId, status: { in: ["ACTIVE", "REGISTERED"] } },
         data: { deletedAt: null },
       });
 
       // Add a clinical note on each restored admission reminding doctor to re-prescribe
       const admissions = await tx.admission.findMany({
-        where: { patientId },
+        where: { patientId, status: { in: ["ACTIVE", "REGISTERED"] } },
         select: { id: true },
       });
       for (const adm of admissions) {
@@ -495,6 +495,12 @@ export async function permanentlyDeletePatient(patientId: string) {
         select: { id: true },
       })).map((t) => t.id);
 
+      // Proofs for medication administrations are keyed on MedicationAdministration IDs
+      const medAdminIds = (await tx.medicationAdministration.findMany({
+        where: { treatmentPlanId: { in: proofTreatmentPlanIds } },
+        select: { id: true },
+      })).map((a) => a.id);
+
       const proofVitalIds = (await tx.vitalRecord.findMany({
         where: { admissionId: { in: admissionIds } },
         select: { id: true },
@@ -531,7 +537,7 @@ export async function permanentlyDeletePatient(patientId: string) {
       })).map((d) => d.id);
 
       const allRecordIds = [
-        ...proofTreatmentPlanIds,
+        ...medAdminIds,
         ...proofVitalIds,
         ...bathIds,
         ...feedingLogIds,

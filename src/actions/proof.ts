@@ -12,8 +12,8 @@ export async function saveProofAttachments(
   fileData: Array<{ fileUrl: string; fileId: string; fileName: string }>
 ) {
   try {
-    if (fileData.length === 0) return { success: true };
     const session = await requireAuth();
+    if (fileData.length === 0) return { success: true };
     await db.proofAttachment.createMany({
       data: fileData.map((f) => ({
         recordId,

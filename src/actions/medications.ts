@@ -41,7 +41,7 @@ export async function prescribeMedication(admissionId: string, formData: FormDat
 
     if (!Array.isArray(scheduledTimes)) return { error: "Invalid scheduled times format" };
 
-    const endDate = endDateRaw ? new Date(endDateRaw) : undefined;
+    const endDate = endDateRaw ? toUTCDate(endDateRaw) : undefined;
 
     await db.treatmentPlan.create({
       data: {

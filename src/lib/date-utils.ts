@@ -49,9 +49,10 @@ export function getTodayIST(): string {
 }
 
 export function isOverdueByMinutes(scheduledTime: string, minutes: number = 30): boolean {
-  const todayStr = formatInTimeZone(new Date(), IST_ZONE, "yyyy-MM-dd");
+  const todayStr = getTodayIST();
   const scheduledMs = new Date(`${todayStr}T${scheduledTime}:00+05:30`).getTime();
   const nowMs = Date.now();
+  if (scheduledMs > nowMs) return false; // Future — not overdue
   return (nowMs - scheduledMs) / 60000 > minutes;
 }
 

@@ -44,11 +44,7 @@ export default async function DashboardPage({
         where: { isActive: true },
         include: {
           administrations: {
-            where: {
-              scheduledDate: today,
-              wasAdministered: false,
-              wasSkipped: false,
-            },
+            where: { scheduledDate: today },
           },
         },
       },
@@ -83,13 +79,14 @@ export default async function DashboardPage({
   ).length;
 
   const pendingMedsCount = activeAdmissions.reduce((sum, a) => {
-    return (
-      sum +
-      a.treatmentPlans.reduce(
-        (planSum, plan) => planSum + plan.administrations.length,
-        0
-      )
-    );
+    return sum + a.treatmentPlans.reduce((planSum, plan) => {
+      if (!plan.isActive) return planSum;
+      const totalSlots = plan.scheduledTimes.length;
+      const doneSlots = plan.administrations.filter(
+        (adm) => adm.wasAdministered || adm.wasSkipped
+      ).length;
+      return planSum + Math.max(0, totalSlots - doneSlots);
+    }, 0);
   }, 0);
 
   // Feedings in next ~2 hours (IST-aware)

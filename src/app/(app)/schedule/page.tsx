@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { formatInTimeZone } from "date-fns-tz";
 import { isBathDue, getTodayIST, getTodayUTCDate } from "@/lib/date-utils";
 import { TimeBlock } from "@/components/schedule/time-block";
 import { ScheduleMedRow } from "@/components/schedule/schedule-med-row";
@@ -270,12 +271,7 @@ export default async function SchedulePage() {
         <div>
           <h1 className="text-lg font-bold text-gray-900">Daily Schedule</h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {formatInTimeZone(new Date(), "Asia/Kolkata", "EEEE, d MMMM yyyy")}
           </p>
         </div>
         {hasAnyTasks && (
@@ -330,6 +326,7 @@ export default async function SchedulePage() {
                     patientName={task.patientName}
                     ward={task.ward}
                     cageNumber={task.cageNumber}
+                    staffName={session.name}
                   />
                 ))}
                 {group.feedings.map((task) => (

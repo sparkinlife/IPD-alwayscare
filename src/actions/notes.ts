@@ -1,13 +1,13 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { validateNoteCategory } from "@/lib/validators";
 import { handleActionError } from "@/lib/action-utils";
 
 export async function addNote(admissionId: string, formData: FormData) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },

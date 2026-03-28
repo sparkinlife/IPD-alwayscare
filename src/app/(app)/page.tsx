@@ -55,7 +55,9 @@ export default async function DashboardPage({
       dietPlans: {
         where: { isActive: true },
         include: {
-          feedingSchedules: true,
+          feedingSchedules: {
+            where: { isActive: true },
+          },
         },
       },
       isolationProtocol: {

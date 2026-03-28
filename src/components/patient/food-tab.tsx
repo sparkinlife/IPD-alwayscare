@@ -35,6 +35,7 @@ interface FeedingSchedule {
   scheduledTime: string;
   foodType: string;
   portion: string;
+  isActive: boolean;
   feedingLogs: FeedingLog[];
 }
 
@@ -108,6 +109,7 @@ function getTodayLog(schedule: FeedingSchedule, today: string): FeedingLog | nul
 // ─── Diet Plan Form ────────────────────────────────────────────────────────────
 
 interface ScheduleEntry {
+  id?: string;
   scheduledTime: string;
   foodType: string;
   portion: string;
@@ -127,7 +129,7 @@ function DietPlanSheet({
   defaultValues?: {
     dietType: string;
     instructions: string | null;
-    feedingSchedules: Array<{ scheduledTime: string; foodType: string; portion: string }>;
+    feedingSchedules: Array<{ id?: string; scheduledTime: string; foodType: string; portion: string }>;
   };
 }) {
   const [open, setOpen] = useState(false);
@@ -137,6 +139,7 @@ function DietPlanSheet({
   const [schedules, setSchedules] = useState<ScheduleEntry[]>(
     defaultValues?.feedingSchedules?.length
       ? defaultValues.feedingSchedules.map((s) => ({
+          id: s.id,
           scheduledTime: s.scheduledTime,
           foodType: s.foodType,
           portion: s.portion,
@@ -162,6 +165,7 @@ function DietPlanSheet({
     setSchedules(
       defaultValues?.feedingSchedules?.length
         ? defaultValues.feedingSchedules.map((s) => ({
+            id: s.id,
             scheduledTime: s.scheduledTime,
             foodType: s.foodType,
             portion: s.portion,
@@ -211,7 +215,7 @@ function DietPlanSheet({
         setOpen(false);
       }
     } catch {
-      toast.error("Failed to create diet plan");
+      toast.error("Failed to save diet plan");
     } finally {
       setLoading(false);
     }
@@ -361,7 +365,7 @@ function DietPlanSheet({
               Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? "Creating..." : "Create Plan"}
+              {loading ? "Saving..." : defaultValues ? "Update Plan" : "Create Plan"}
             </Button>
           </div>
         </form>
@@ -573,7 +577,8 @@ function FeedingHistory({ dietPlans, isDoctor }: { dietPlans: DietPlan[]; isDoct
 export function FoodTab({ admissionId, dietPlans, isDoctor, patientName }: FoodTabProps) {
   const today = getTodayIST();
   const activePlan = dietPlans.find((p) => p.isActive) ?? null;
-  const todaySchedules = activePlan?.feedingSchedules ?? [];
+  const activeSchedules = activePlan?.feedingSchedules.filter((schedule) => schedule.isActive) ?? [];
+  const todaySchedules = activeSchedules;
 
   return (
     <div className="space-y-1">
@@ -605,7 +610,8 @@ export function FoodTab({ admissionId, dietPlans, isDoctor, patientName }: FoodT
                 defaultValues={{
                   dietType: activePlan.dietType,
                   instructions: activePlan.instructions,
-                  feedingSchedules: activePlan.feedingSchedules.map((s) => ({
+                  feedingSchedules: activeSchedules.map((s) => ({
+                    id: s.id,
                     scheduledTime: s.scheduledTime,
                     foodType: s.foodType,
                     portion: s.portion,

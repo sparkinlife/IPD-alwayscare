@@ -61,6 +61,7 @@ export async function GET() {
           select: {
             id: true,
             feedingSchedules: {
+              where: { isActive: true },
               select: {
                 id: true,
                 scheduledTime: true,
@@ -372,13 +373,19 @@ export async function GET() {
 
     // ── Role-based filtering ─────────────────────────────────────────────
     // Attendant: everything
+    // Management: overdue + urgent + critical only
     // Paravet:   meds (due + overdue/urgent) + critical vitals/condition
     // Doctor:    only overdue/urgent (30min+) + critical + pending setups
     // Admin:     same as attendant
     const role = session.role;
     let filtered = notifications;
 
-    if (role === "DOCTOR") {
+    if (role === "MANAGEMENT") {
+      filtered = notifications.filter((n) => {
+        if (n.type === "overdue" || n.type === "urgent" || n.type === "critical") return true;
+        return false;
+      });
+    } else if (role === "DOCTOR") {
       filtered = notifications.filter((n) => {
         // Doctors see overdue + urgent for everything
         if (n.type === "overdue" || n.type === "urgent") return true;

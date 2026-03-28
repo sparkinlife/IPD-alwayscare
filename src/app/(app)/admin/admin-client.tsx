@@ -34,7 +34,7 @@ import {
   deleteCage,
 } from "@/actions/staff";
 
-type StaffRole = "DOCTOR" | "PARAVET" | "ATTENDANT" | "ADMIN";
+type StaffRole = "DOCTOR" | "PARAVET" | "ATTENDANT" | "ADMIN" | "MANAGEMENT";
 type Ward = "GENERAL" | "ISOLATION" | "ICU";
 
 interface StaffMember {
@@ -64,6 +64,7 @@ const roleColors: Record<StaffRole, string> = {
   DOCTOR: "bg-blue-100 text-blue-800",
   PARAVET: "bg-teal-100 text-teal-800",
   ATTENDANT: "bg-gray-100 text-gray-800",
+  MANAGEMENT: "bg-indigo-100 text-indigo-800",
 };
 
 const wardLabels: Record<Ward, string> = {
@@ -138,6 +139,7 @@ function AddStaffDialog() {
                 <SelectItem value="PARAVET">Paravet</SelectItem>
                 <SelectItem value="ATTENDANT">Attendant</SelectItem>
                 <SelectItem value="ADMIN">Admin</SelectItem>
+                <SelectItem value="MANAGEMENT">Management</SelectItem>
               </SelectContent>
             </Select>
           </div>

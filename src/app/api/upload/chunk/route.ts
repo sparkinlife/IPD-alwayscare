@@ -6,6 +6,9 @@ export async function PUT(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (session.role === "MANAGEMENT") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   try {
     const { uploadUri, chunkData, start, end, totalSize } =

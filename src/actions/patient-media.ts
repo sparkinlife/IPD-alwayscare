@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 
@@ -12,7 +12,7 @@ export async function savePatientMedia(
   setAsProfile: boolean
 ) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     const patient = await db.patient.findUnique({
       where: { id: patientId },
@@ -85,7 +85,7 @@ export async function deletePatientMedia(mediaId: string) {
 
 export async function setProfilePhoto(mediaId: string) {
   try {
-    await requireAuth();
+    await requireWriteAccess();
 
     const media = await db.patientMedia.findUnique({
       where: { id: mediaId },

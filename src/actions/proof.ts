@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireAuth, requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 
@@ -12,7 +12,7 @@ export async function saveProofAttachments(
   fileData: Array<{ fileUrl: string; fileId: string; fileName: string }>
 ) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
     if (fileData.length === 0) return { success: true };
     await db.proofAttachment.createMany({
       data: fileData.map((f) => ({
@@ -71,7 +71,7 @@ export async function saveSkippedProof(
   skipReason: string
 ) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
     await db.proofAttachment.create({
       data: {
         recordId,

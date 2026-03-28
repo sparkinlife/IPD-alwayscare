@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { validateMedRoute, validateFrequency } from "@/lib/validators";
 import { handleActionError } from "@/lib/action-utils";
 import { toUTCDate } from "@/lib/date-utils";
@@ -107,7 +107,7 @@ export async function administerDose(
   scheduledTime: string
 ) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
@@ -325,7 +325,7 @@ export async function skipDose(
   skipReason: string
 ) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     if (!skipReason) return { error: "Skip reason is required" };
 

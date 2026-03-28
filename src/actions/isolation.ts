@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 
 export async function logDisinfection(isolationProtocolId: string) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     const protocol = await db.isolationProtocol.findUnique({
       where: { id: isolationProtocolId },

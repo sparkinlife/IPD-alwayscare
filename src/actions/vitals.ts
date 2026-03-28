@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 
 export async function recordVitals(admissionId: string, formData: FormData) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },

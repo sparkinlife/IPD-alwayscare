@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireAuth, requireDoctor } from "@/lib/auth";
+import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import {
   validateSpecies,
   validateSex,
@@ -17,7 +17,7 @@ import { markDeletedInDrive } from "@/lib/google-auth";
 
 export async function registerPatient(_prevState: unknown, formData: FormData) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
 
     const name = formData.get("name") as string;
     const species = (formData.get("species") as string) || "DOG";
@@ -69,7 +69,7 @@ export async function registerPatient(_prevState: unknown, formData: FormData) {
 
 export async function cancelRegistration(admissionId: string) {
   try {
-    await requireAuth();
+    await requireWriteAccess();
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
@@ -122,7 +122,7 @@ export async function cancelRegistration(admissionId: string) {
 
 export async function editRegisteredPatient(admissionId: string, formData: FormData) {
   try {
-    await requireAuth();
+    await requireWriteAccess();
 
     const name = (formData.get("name") as string)?.trim();
     const species = formData.get("species") as string;
@@ -652,7 +652,7 @@ export async function restorePatient(patientId: string) {
 
 export async function permanentlyDeletePatient(patientId: string) {
   try {
-    const session = await requireAuth();
+    const session = await requireWriteAccess();
     if (session.role !== "ADMIN") throw new Error("Forbidden: Admin only");
 
     const patient = await db.patient.findUnique({

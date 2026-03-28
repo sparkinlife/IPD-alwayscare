@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendAlertToAll } from "@/lib/whatsapp";
+import { sendManagementPush } from "@/lib/push";
 import {
   hasAnyAbnormalVital,
   checkTemperature,
@@ -48,10 +49,10 @@ export async function GET(request: Request) {
         where: { isActive: true },
         include: {
           feedingSchedules: {
+            where: { isActive: true },
             include: {
               feedingLogs: {
-                orderBy: { date: "desc" },
-                take: 2,
+                where: { date: today },
               },
             },
           },
@@ -121,29 +122,32 @@ export async function GET(request: Request) {
       });
     }
 
-    // 4. Check feeding refusals (2+ consecutive)
+    // 4. Check missed feedings (30+ min overdue)
     for (const diet of admission.dietPlans) {
       for (const schedule of diet.feedingSchedules) {
-        if (schedule.feedingLogs.length >= 2) {
-          const [latest, previous] = schedule.feedingLogs;
-          const daysApart = Math.round(
-            (latest.date.getTime() - previous.date.getTime()) /
-              (24 * 60 * 60 * 1000)
-          );
-          const hasTwoConsecutiveRefusals =
-            latest.status === "REFUSED" &&
-            previous.status === "REFUSED" &&
-            daysApart === 1;
+        const todayLog = schedule.feedingLogs[0];
+        if (todayLog && todayLog.status !== "PENDING") continue;
 
-          if (!hasTwoConsecutiveRefusals) continue;
+        const [h, m] = schedule.scheduledTime.split(":").map(Number);
+        const scheduledMinutes = h * 60 + m;
+        const minutesOverdue = nowMinutes - scheduledMinutes;
+        if (minutesOverdue <= 30) continue;
 
-          alerts.push({
-            type: "MISSED_FEEDING",
-            admissionId: admission.id,
-            message: `Patient ${name} has refused 2+ consecutive feedings (${schedule.foodType})`,
-          });
-        }
+        alerts.push({
+          type: "MISSED_FEEDING",
+          admissionId: admission.id,
+          message: `Feeding ${schedule.foodType} for ${name} is ${minutesOverdue} min overdue`,
+        });
       }
+    }
+
+    // 4b. Critical condition status
+    if (admission.condition === "CRITICAL") {
+      alerts.push({
+        type: "CONDITION_CRITICAL",
+        admissionId: admission.id,
+        message: `CRITICAL CONDITION: ${name} is marked critical`,
+      });
     }
 
     // 5. Check disinfection overdue (isolation patients)
@@ -194,6 +198,27 @@ export async function GET(request: Request) {
         message: alert.message,
       },
     });
+
+    if (
+      alert.type === "MISSED_MED" ||
+      alert.type === "MISSED_FEEDING" ||
+      alert.type === "CRITICAL_VITALS" ||
+      alert.type === "CONDITION_CRITICAL"
+    ) {
+      const title =
+        alert.type === "MISSED_MED"
+          ? "Medication Overdue"
+          : alert.type === "MISSED_FEEDING"
+          ? "Feeding Overdue"
+          : "Critical Patient Alert";
+
+      await sendManagementPush({
+        title,
+        body: alert.message,
+        url: `/management/patients/${alert.admissionId}?tab=overview`,
+        tag: `${alert.type}:${alert.admissionId}`,
+      });
+    }
   }
 
   return NextResponse.json({

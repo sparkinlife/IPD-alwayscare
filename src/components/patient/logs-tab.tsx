@@ -10,7 +10,8 @@ const IST_ZONE = "Asia/Kolkata";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface LogsTabProps {
+export interface LogsTabProps {
+  defaultFilter?: "today" | "all";
   admission: {
     id: string;
     treatmentPlans: Array<{
@@ -89,6 +90,14 @@ interface LogEntry {
   roleColor?: string;
 }
 
+interface TimeBucket {
+  key: string;
+  dateLabel: string;
+  hourLabel: string;
+  sortTime: number;
+  entries: LogEntry[];
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getISTDateStr(date: Date): string {
@@ -118,8 +127,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function LogsTab({ admission }: LogsTabProps) {
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayIST());
+export function LogsTab({ admission, defaultFilter = "today" }: LogsTabProps) {
+  const [selectedDate, setSelectedDate] = useState<string>(
+    defaultFilter === "all" ? "" : getTodayIST()
+  );
 
   // Flatten all records into log entries
   const allEntries = useMemo<LogEntry[]>(() => {
@@ -242,23 +253,43 @@ export function LogsTab({ admission }: LogsTabProps) {
     return entries;
   }, [admission]);
 
-  // Filter to selected date (IST)
+  // Filter to selected date (IST). Empty date = all history.
   const filteredEntries = useMemo(
-    () => allEntries.filter((e) => getISTDateStr(e.time) === selectedDate),
+    () =>
+      selectedDate
+        ? allEntries.filter((e) => getISTDateStr(e.time) === selectedDate)
+        : allEntries,
     [allEntries, selectedDate]
   );
 
-  // Group by hour (descending order — newest hour first)
-  const groupedByHour = useMemo(() => {
-    const map = new Map<number, LogEntry[]>();
+  // Group by IST date+hour (descending order — newest bucket first)
+  const groupedByHour = useMemo<TimeBucket[]>(() => {
+    const map = new Map<string, TimeBucket>();
     for (const entry of filteredEntries) {
+      const dateKey = getISTDateStr(entry.time);
+      const dateLabel = formatInTimeZone(entry.time, IST_ZONE, "dd MMM yyyy");
       const hour = getISTHour(entry.time);
-      if (!map.has(hour)) map.set(hour, []);
-      map.get(hour)!.push(entry);
+      const hourLabel = `${String(hour).padStart(2, "0")}:00 – ${String((hour + 1) % 24).padStart(2, "0")}:00`;
+      const key = `${dateKey}-${String(hour).padStart(2, "0")}`;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          dateLabel,
+          hourLabel,
+          sortTime: entry.time.getTime(),
+          entries: [],
+        });
+      }
+
+      const bucket = map.get(key)!;
+      bucket.entries.push(entry);
+      if (entry.time.getTime() > bucket.sortTime) {
+        bucket.sortTime = entry.time.getTime();
+      }
     }
-    // Sort hours descending
-    const sorted = Array.from(map.entries()).sort((a, b) => b[0] - a[0]);
-    return sorted;
+
+    return Array.from(map.values()).sort((a, b) => b.sortTime - a.sortTime);
   }, [filteredEntries]);
 
   return (
@@ -279,6 +310,30 @@ export function LogsTab({ admission }: LogsTabProps) {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-clinic-teal focus:border-transparent"
           />
+          <button
+            type="button"
+            onClick={() => setSelectedDate("")}
+            className={cn(
+              "rounded-md px-2.5 py-1.5 text-xs font-medium border transition-colors",
+              selectedDate === ""
+                ? "border-clinic-teal bg-clinic-teal-light text-clinic-teal"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            )}
+          >
+            All history
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDate(getTodayIST())}
+            className={cn(
+              "rounded-md px-2.5 py-1.5 text-xs font-medium border transition-colors",
+              selectedDate === getTodayIST()
+                ? "border-clinic-teal bg-clinic-teal-light text-clinic-teal"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            )}
+          >
+            Today
+          </button>
         </div>
         {filteredEntries.length > 0 && (
           <span className="text-xs text-muted-foreground bg-gray-100 px-2.5 py-1 rounded-full">
@@ -294,14 +349,17 @@ export function LogsTab({ admission }: LogsTabProps) {
         </div>
       ) : (
         <div className="space-y-6">
-          {groupedByHour.map(([hour, entries]) => {
-            const hourLabel = `${String(hour).padStart(2, "0")}:00 – ${String((hour + 1) % 24).padStart(2, "0")}:00`;
+          {groupedByHour.map((bucket) => {
+            const headerLabel =
+              selectedDate === ""
+                ? `${bucket.dateLabel} · ${bucket.hourLabel}`
+                : bucket.hourLabel;
             return (
-              <div key={hour}>
+              <div key={bucket.key}>
                 {/* Hour header */}
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                    {hourLabel}
+                    {headerLabel}
                   </span>
                   <div className="flex-1 h-px bg-gray-100" />
                 </div>
@@ -312,7 +370,7 @@ export function LogsTab({ admission }: LogsTabProps) {
                   <div className="absolute left-[22px] top-0 bottom-0 w-px bg-gray-200" />
 
                   <div className="space-y-3">
-                    {entries.map((entry, idx) => (
+                    {bucket.entries.map((entry, idx) => (
                       <div key={idx} className="relative flex gap-3 pl-11">
                         {/* Timeline dot */}
                         <div className="absolute left-[18px] top-2 w-2.5 h-2.5 rounded-full bg-white border-2 border-gray-300" />

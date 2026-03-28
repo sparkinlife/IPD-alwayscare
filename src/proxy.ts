@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = ["/login"];
+const MANAGEMENT_PATH_PREFIX = "/management";
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -34,6 +35,27 @@ export default async function proxy(request: NextRequest) {
     const { jwtVerify } = await import("jose");
     const { payload } = await jwtVerify(token, SECRET);
     if (!payload) throw new Error("Invalid token");
+
+    const role = payload.role as string | undefined;
+    const isManagement = role === "MANAGEMENT";
+    const isManagementPath =
+      pathname === MANAGEMENT_PATH_PREFIX ||
+      pathname.startsWith(`${MANAGEMENT_PATH_PREFIX}/`);
+    const isApiPath = pathname.startsWith("/api/");
+
+    if (isManagement) {
+      // Management users are constrained to the external read-only portal.
+      if (pathname === "/") {
+        return NextResponse.redirect(new URL(MANAGEMENT_PATH_PREFIX, request.url));
+      }
+      if (!isManagementPath && !isApiPath) {
+        return NextResponse.redirect(new URL(MANAGEMENT_PATH_PREFIX, request.url));
+      }
+    } else if (isManagementPath) {
+      // Internal staff should not enter management-only routes.
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
     return NextResponse.next();
   } catch {
     const response = NextResponse.redirect(new URL("/login", request.url));

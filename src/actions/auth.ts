@@ -8,6 +8,7 @@ import { createSession, destroySession } from "@/lib/auth";
 export async function login(_prevState: unknown, formData: FormData) {
   const phone = formData.get("phone") as string;
   const password = formData.get("password") as string;
+  let redirectTo = "/";
 
   if (!phone || !password) {
     return { error: "Phone and password are required" };
@@ -25,10 +26,14 @@ export async function login(_prevState: unknown, formData: FormData) {
     }
 
     await createSession(staff.id, staff.role);
-  } catch {
+    if (staff.role === "MANAGEMENT") {
+      redirectTo = "/management";
+    }
+  } catch (error) {
+    console.error("Login action failed:", error);
     return { error: "Something went wrong. Please try again." };
   }
-  redirect("/");
+  redirect(redirectTo);
 }
 
 export async function logout() {

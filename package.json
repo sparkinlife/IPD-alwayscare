@@ -7,7 +7,8 @@
     "prebuild": "prisma generate",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "repair:feeding-log-integrity": "tsx scripts/repair-feeding-log-integrity.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -15,6 +16,7 @@
     "@prisma/adapter-neon": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "@serwist/next": "^9.5.7",
+    "@types/web-push": "^3.6.4",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -33,6 +35,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tw-animate-css": "^1.4.0",
+    "web-push": "^3.6.7",
     "ws": "^8.20.0"
   },
   "devDependencies": {

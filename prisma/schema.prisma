@@ -110,6 +110,7 @@ enum StaffRole {
   PARAVET
   ATTENDANT
   ADMIN
+  MANAGEMENT
 }
 
 // ─── Models ────────────────────────────────────────
@@ -121,6 +122,7 @@ model Staff {
   passwordHash String
   role         StaffRole
   isActive     Boolean   @default(true)
+  lastSeenAt   DateTime?
   deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -142,6 +144,7 @@ model Staff {
   isolationProtocolsCreated IsolationProtocol[]     @relation("createdByStaff")
   proofAttachments        ProofAttachment[]
   patientMedia            PatientMedia[]
+  pushSubscriptions       PushSubscription[]
 }
 
 model Session {
@@ -150,6 +153,21 @@ model Session {
   staff     Staff    @relation(fields: [staffId], references: [id])
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([staffId])
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  staffId    String
+  staff      Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([staffId])
 }
@@ -341,9 +359,12 @@ model FeedingSchedule {
   scheduledTime String
   foodType      String
   portion       String
+  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
 
   feedingLogs FeedingLog[]
+
+  @@index([dietPlanId, isActive])
 }
 
 model FeedingLog {

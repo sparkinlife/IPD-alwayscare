@@ -129,6 +129,7 @@ export default async function SchedulePage() {
         where: { isActive: true },
         include: {
           feedingSchedules: {
+            where: { isActive: true },
             include: {
               feedingLogs: {
                 where: { date: today },

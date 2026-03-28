@@ -26,12 +26,13 @@ export async function GET(request: NextRequest) {
     const meta = await drive.files.get({
       fileId,
       fields: "mimeType,size",
+      supportsAllDrives: true,
     });
     const mimeType = meta.data.mimeType || "application/octet-stream";
 
     // Stream the file content
     const res = await drive.files.get(
-      { fileId, alt: "media" },
+      { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "stream" }
     );
 

@@ -139,3 +139,58 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .patient-tab-link {
+    -webkit-tap-highlight-color: rgb(13 148 136 / 0.16);
+    touch-action: manipulation;
+  }
+
+  .patient-tab-link[data-pressed="true"] {
+    background-color: rgb(240 253 249);
+  }
+
+  .patient-tab-link[data-pending="true"] {
+    cursor: progress;
+  }
+
+  .patient-tab-pending-indicator {
+    position: relative;
+    width: 0.75rem;
+    height: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .patient-tab-pending-indicator::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .patient-tab-pending-indicator[data-pending="true"]::before {
+    opacity: 1;
+    border-color: rgb(13 148 136 / 0.3);
+    border-top-color: rgb(13 148 136);
+    animation: patient-tab-spinner 700ms linear infinite;
+  }
+}
+
+@keyframes patient-tab-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .patient-tab-pending-indicator::before {
+    transition: none;
+  }
+
+  .patient-tab-pending-indicator[data-pending="true"]::before {
+    animation: none;
+  }
+}

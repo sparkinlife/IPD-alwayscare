@@ -12,7 +12,7 @@ import {
   validateMedRoute,
   validateFrequency,
 } from "@/lib/validators";
-import { handleActionError } from "@/lib/action-utils";
+import { ActionUserError, handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 
 export async function registerPatient(_prevState: unknown, formData: FormData) {
@@ -87,7 +87,7 @@ export async function cancelRegistration(admissionId: string) {
         select: { status: true, patientId: true },
       });
       if (!current || current.status !== "REGISTERED") {
-        throw new Error("Admission is no longer in REGISTERED status");
+        throw new ActionUserError("Admission is no longer in REGISTERED status");
       }
 
       // Check patient has no other admissions before deleting
@@ -144,9 +144,9 @@ export async function editRegisteredPatient(admissionId: string, formData: FormD
         where: { id: admissionId },
         select: { id: true, status: true, patientId: true },
       });
-      if (!admission) throw new Error("Admission not found");
+      if (!admission) throw new ActionUserError("Admission not found");
       if (admission.status !== "REGISTERED") {
-        throw new Error("Only registered (pending setup) patients can be edited here");
+        throw new ActionUserError("Only registered (pending setup) patients can be edited here");
       }
 
       await tx.patient.update({
@@ -183,6 +183,10 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
       select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status === "ACTIVE") {
+      revalidatePath("/");
+      redirect(`/patients/${admissionId}`);
+    }
     if (admission.status !== "REGISTERED") {
       return { error: "Clinical setup can only be completed once for registered patients" };
     }
@@ -244,10 +248,13 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
         select: { status: true, deletedAt: true },
       });
       if (!currentAdmission || currentAdmission.deletedAt) {
-        throw new Error("Admission not found");
+        throw new ActionUserError("Admission not found");
+      }
+      if (currentAdmission.status === "ACTIVE") {
+        return;
       }
       if (currentAdmission.status !== "REGISTERED") {
-        throw new Error("Admission setup has already been completed");
+        throw new ActionUserError("Admission setup can only be completed for registered patients");
       }
 
       // Check cage uniqueness INSIDE the transaction to avoid race conditions
@@ -262,12 +269,14 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
       });
 
       if (existingCage) {
-        throw new Error(`Cage ${cageNumber} is occupied by ${existingCage.patient.name}`);
+        throw new ActionUserError(
+          `Cage ${cageNumber} is occupied by ${existingCage.patient.name}`
+        );
       }
 
-      // Update admission to ACTIVE
-      await tx.admission.update({
-        where: { id: admissionId },
+      // Use conditional update so duplicate/racing submissions become idempotent.
+      const admissionUpdate = await tx.admission.updateMany({
+        where: { id: admissionId, status: "REGISTERED", deletedAt: null },
         data: {
           status: "ACTIVE",
           diagnosis,
@@ -279,6 +288,22 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
           attendingDoctor,
         },
       });
+
+      if (admissionUpdate.count === 0) {
+        const latest = await tx.admission.findUnique({
+          where: { id: admissionId },
+          select: { status: true, deletedAt: true },
+        });
+        if (!latest || latest.deletedAt) {
+          throw new ActionUserError("Admission not found");
+        }
+        if (latest.status === "ACTIVE") {
+          return;
+        }
+        throw new ActionUserError(
+          "Admission setup can only be completed for registered patients"
+        );
+      }
 
       // Create initial medications if provided
       for (const med of meds) {
@@ -428,7 +453,7 @@ export async function transferWard(admissionId: string, newWard: string, newCage
         include: { patient: { select: { name: true } } },
       });
       if (existing) {
-        throw new Error(`Cage ${newCage} is occupied by ${existing.patient.name}`);
+        throw new ActionUserError(`Cage ${newCage} is occupied by ${existing.patient.name}`);
       }
 
       await tx.admission.update({

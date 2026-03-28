@@ -219,8 +219,19 @@ export function ClinicalSetupForm({
         setIsPending(false);
       }
       // On success the server action redirects — no need to navigate here
-    } catch {
-      // redirect() throws — this is expected on success
+    } catch (error) {
+      // redirect() throws in server actions on success.
+      if (
+        error &&
+        typeof error === "object" &&
+        "digest" in error &&
+        typeof (error as { digest?: unknown }).digest === "string" &&
+        (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+      ) {
+        return;
+      }
+      setIsPending(false);
+      toast.error("Failed to complete admission. Please try again.");
     }
   }
 

@@ -12,9 +12,10 @@ export async function addLabResult(admissionId: string, formData: FormData) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     const testType = formData.get("testType") as string;
     const testName = formData.get("testName") as string;
@@ -41,9 +42,15 @@ export async function updateLabResult(labId: string, formData: FormData) {
 
     const lab = await db.labResult.findUnique({
       where: { id: labId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!lab) return { error: "Lab result not found" };
+    if (lab.admission.deletedAt || lab.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const testType = formData.get("testType") as string;
     const testName = formData.get("testName") as string;
@@ -72,9 +79,15 @@ export async function deleteLabResult(labId: string) {
 
     const lab = await db.labResult.findUnique({
       where: { id: labId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!lab) return { error: "Lab result not found" };
+    if (lab.admission.deletedAt || lab.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const proofs = await db.proofAttachment.findMany({
       where: { recordId: labId, recordType: "LabResult" },

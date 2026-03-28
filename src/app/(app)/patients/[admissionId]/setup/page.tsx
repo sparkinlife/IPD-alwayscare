@@ -32,14 +32,18 @@ export default async function ClinicalSetupPage({
     }),
     db.admission.findMany({
       where: { status: "ACTIVE", deletedAt: null },
-      select: { cageNumber: true },
+      select: { ward: true, cageNumber: true },
     }),
   ]);
 
   const occupiedSet = new Set(
-    occupiedCages.map((a: any) => a.cageNumber).filter(Boolean) as string[]
+    occupiedCages
+      .filter((a: any) => a.ward && a.cageNumber)
+      .map((a: any) => `${a.ward}:${a.cageNumber}`)
   );
-  const availableCages = cages.filter((c: any) => !occupiedSet.has(c.cageNumber));
+  const availableCages = cages.filter(
+    (c: any) => !occupiedSet.has(`${c.ward}:${c.cageNumber}`)
+  );
 
   return (
     <div className="p-4 max-w-2xl mx-auto">

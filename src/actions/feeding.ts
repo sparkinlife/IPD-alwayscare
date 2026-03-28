@@ -13,9 +13,10 @@ export async function createDietPlan(admissionId: string, formData: FormData) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     const dietType = formData.get("dietType") as string;
     const instructions = (formData.get("instructions") as string) || undefined;
@@ -91,7 +92,7 @@ export async function logFeeding(feedingScheduleId: string, formData: FormData) 
           select: {
             admissionId: true,
             isActive: true,
-            admission: { select: { deletedAt: true } }
+            admission: { select: { deletedAt: true, status: true } }
           }
         }
       },
@@ -100,6 +101,9 @@ export async function logFeeding(feedingScheduleId: string, formData: FormData) 
     if (!feedingSchedule) return { error: "Feeding schedule not found" };
     if (!feedingSchedule.dietPlan.isActive) return { error: "Diet plan is no longer active" };
     if (feedingSchedule.dietPlan.admission.deletedAt) return { error: "Admission not found" };
+    if (feedingSchedule.dietPlan.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     // Upsert feeding log for today
     const feedingLog = await db.feedingLog.upsert({
@@ -133,9 +137,26 @@ export async function updateFeeding(feedingLogId: string, formData: FormData) {
 
     const feedingLog = await db.feedingLog.findUnique({
       where: { id: feedingLogId },
-      select: { feedingSchedule: { select: { dietPlan: { select: { admissionId: true } } } } },
+      select: {
+        feedingSchedule: {
+          select: {
+            dietPlan: {
+              select: {
+                admissionId: true,
+                admission: { select: { deletedAt: true, status: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!feedingLog) return { error: "Feeding log not found" };
+    if (
+      feedingLog.feedingSchedule.dietPlan.admission.deletedAt ||
+      feedingLog.feedingSchedule.dietPlan.admission.status !== "ACTIVE"
+    ) {
+      return { error: "Admission is no longer active" };
+    }
 
     const status = formData.get("status") as string;
     const amountConsumed = (formData.get("amountConsumed") as string) || null;
@@ -161,9 +182,26 @@ export async function deleteFeeding(feedingLogId: string) {
 
     const feedingLog = await db.feedingLog.findUnique({
       where: { id: feedingLogId },
-      select: { feedingSchedule: { select: { dietPlan: { select: { admissionId: true } } } } },
+      select: {
+        feedingSchedule: {
+          select: {
+            dietPlan: {
+              select: {
+                admissionId: true,
+                admission: { select: { deletedAt: true, status: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!feedingLog) return { error: "Feeding log not found" };
+    if (
+      feedingLog.feedingSchedule.dietPlan.admission.deletedAt ||
+      feedingLog.feedingSchedule.dietPlan.admission.status !== "ACTIVE"
+    ) {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.feedingLog.update({
       where: { id: feedingLogId },

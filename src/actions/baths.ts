@@ -12,9 +12,10 @@ export async function logBath(admissionId: string, formData: FormData) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     const notes = (formData.get("notes") as string) || undefined;
     const bathLog = await db.bathLog.create({
@@ -35,9 +36,15 @@ export async function updateBath(bathId: string, formData: FormData) {
 
     const bath = await db.bathLog.findUnique({
       where: { id: bathId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!bath) return { error: "Bath log not found" };
+    if (bath.admission.deletedAt || bath.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const notes = (formData.get("notes") as string) || null;
 
@@ -59,9 +66,15 @@ export async function deleteBath(bathId: string) {
 
     const bath = await db.bathLog.findUnique({
       where: { id: bathId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!bath) return { error: "Bath log not found" };
+    if (bath.admission.deletedAt || bath.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const proofs = await db.proofAttachment.findMany({
       where: { recordId: bathId, recordType: "BathLog" },

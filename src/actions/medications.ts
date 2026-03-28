@@ -14,9 +14,10 @@ export async function prescribeMedication(admissionId: string, formData: FormDat
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     const drugName = formData.get("drugName") as string;
     const dose = formData.get("dose") as string;
@@ -73,10 +74,16 @@ export async function stopMedication(treatmentPlanId: string) {
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!plan) return { error: "Treatment plan not found" };
+    if (plan.admission.deletedAt || plan.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.treatmentPlan.update({
       where: { id: treatmentPlanId },
@@ -104,11 +111,19 @@ export async function administerDose(
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true, isActive: true, deletedAt: true },
+      select: {
+        admissionId: true,
+        isActive: true,
+        deletedAt: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!plan) return { error: "Treatment plan not found" };
     if (!plan.isActive || plan.deletedAt) return { error: "Treatment plan is no longer active" };
+    if (plan.admission.deletedAt || plan.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const scheduledDateObj = toUTCDate(scheduledDate);
 
@@ -151,9 +166,15 @@ export async function updateMedication(treatmentPlanId: string, formData: FormDa
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!plan) return { error: "Treatment plan not found" };
+    if (plan.admission.deletedAt || plan.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const drugName = formData.get("drugName") as string;
     const dose = formData.get("dose") as string;
@@ -203,9 +224,15 @@ export async function deleteMedication(treatmentPlanId: string) {
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!plan) return { error: "Treatment plan not found" };
+    if (plan.admission.deletedAt || plan.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     // Find all administrations for this plan and rename their proofs in Drive
     const administrations = await db.medicationAdministration.findMany({
@@ -244,9 +271,22 @@ export async function undoAdministration(administrationId: string) {
 
     const admin = await db.medicationAdministration.findUnique({
       where: { id: administrationId },
-      select: { treatmentPlan: { select: { admissionId: true } } },
+      select: {
+        treatmentPlan: {
+          select: {
+            admissionId: true,
+            admission: { select: { deletedAt: true, status: true } },
+          },
+        },
+      },
     });
     if (!admin) return { error: "Administration record not found" };
+    if (
+      admin.treatmentPlan.admission.deletedAt ||
+      admin.treatmentPlan.admission.status !== "ACTIVE"
+    ) {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.medicationAdministration.update({
       where: { id: administrationId },
@@ -291,11 +331,19 @@ export async function skipDose(
 
     const plan = await db.treatmentPlan.findUnique({
       where: { id: treatmentPlanId },
-      select: { admissionId: true, isActive: true, deletedAt: true },
+      select: {
+        admissionId: true,
+        isActive: true,
+        deletedAt: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!plan) return { error: "Treatment plan not found" };
     if (!plan.isActive || plan.deletedAt) return { error: "Treatment plan is no longer active" };
+    if (plan.admission.deletedAt || plan.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const scheduledDateObj = toUTCDate(scheduledDate);
 

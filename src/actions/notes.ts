@@ -11,9 +11,10 @@ export async function addNote(admissionId: string, formData: FormData) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     const category = formData.get("category") as string;
     const content = formData.get("content") as string;
@@ -35,9 +36,15 @@ export async function updateNote(noteId: string, formData: FormData) {
 
     const note = await db.clinicalNote.findUnique({
       where: { id: noteId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!note) return { error: "Note not found" };
+    if (note.admission.deletedAt || note.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const category = formData.get("category") as string;
     const content = formData.get("content") as string;
@@ -61,9 +68,15 @@ export async function deleteNote(noteId: string) {
 
     const note = await db.clinicalNote.findUnique({
       where: { id: noteId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!note) return { error: "Note not found" };
+    if (note.admission.deletedAt || note.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.clinicalNote.delete({ where: { id: noteId } });
     revalidatePath("/patients/[admissionId]", "page");

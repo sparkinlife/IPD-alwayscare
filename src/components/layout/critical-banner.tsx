@@ -15,14 +15,24 @@ export function CriticalBanner() {
     (n) => n.type === "urgent" || n.type === "critical"
   );
 
-  // Track the last dismissed count so the banner re-appears if more arrive
-  const [lastDismissedCount, setLastDismissedCount] = useState(0);
+  // Track dismissed alert identities so replacement alerts re-show even when count is unchanged
+  const [lastDismissedSignature, setLastDismissedSignature] = useState("");
+  const currentSignature = criticalAndUrgent
+    .map((n) => n.id)
+    .sort()
+    .join("|");
 
   useEffect(() => {
-    if (criticalAndUrgent.length > lastDismissedCount) {
+    if (!currentSignature) {
+      setDismissed(false);
+      setLastDismissedSignature("");
+      return;
+    }
+
+    if (dismissed && currentSignature && currentSignature !== lastDismissedSignature) {
       setDismissed(false);
     }
-  }, [criticalAndUrgent.length, lastDismissedCount]);
+  }, [dismissed, currentSignature, lastDismissedSignature]);
 
   if (criticalAndUrgent.length === 0 || dismissed) {
     return null;
@@ -33,7 +43,7 @@ export function CriticalBanner() {
   function handleDismiss(e: React.MouseEvent) {
     e.stopPropagation();
     setDismissed(true);
-    setLastDismissedCount(criticalAndUrgent.length);
+    setLastDismissedSignature(currentSignature);
   }
 
   function handleNavigate() {

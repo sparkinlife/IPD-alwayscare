@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { buildDriveFolderPath, buildDriveFileName } from "@/lib/drive-path";
+import { driveMediaUrl } from "@/lib/drive-url";
 import { uploadFileChunked } from "@/lib/chunked-upload";
 import { getProofAttachments, deleteProofAttachment, saveProofAttachments } from "@/actions/proof";
 import { formatDateTimeIST } from "@/lib/date-utils";
@@ -236,21 +237,27 @@ function ProofViewSheet({
               {/* Photo gallery */}
               {photoProofs.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {photoProofs.map((proof) => (
-                    <div
-                      key={proof.id}
-                      className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
-                    >
+                  {photoProofs.map((proof) => {
+                    const mediaSrc =
+                      proof.fileId && proof.fileId !== "SKIPPED"
+                        ? driveMediaUrl(proof.fileId)
+                        : proof.fileUrl;
+
+                    return (
+                      <div
+                        key={proof.id}
+                        className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
+                      >
                       {/* Thumbnail — try to show as image, fall back to file name */}
                       <a
-                        href={proof.fileUrl}
+                        href={mediaSrc || proof.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block h-full w-full"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={proof.fileUrl}
+                          src={mediaSrc}
                           alt={proof.fileName}
                           className="h-full w-full object-cover"
                           onError={(e) => {
@@ -297,8 +304,9 @@ function ProofViewSheet({
                           )}
                         </button>
                       )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

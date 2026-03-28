@@ -180,9 +180,12 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
     // Admission existence check
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "REGISTERED") {
+      return { error: "Clinical setup can only be completed once for registered patients" };
+    }
 
     const diagnosis = formData.get("diagnosis") as string;
     const chiefComplaint = (formData.get("chiefComplaint") as string) || undefined;
@@ -232,10 +235,25 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
       if (!Array.isArray(feedings)) return { error: "Invalid feeding schedules format" };
     }
 
+    const validatedWard = validateWard(ward);
+    const validatedCondition = validateCondition(condition);
+
     await db.$transaction(async (tx: any) => {
+      const currentAdmission = await tx.admission.findUnique({
+        where: { id: admissionId },
+        select: { status: true, deletedAt: true },
+      });
+      if (!currentAdmission || currentAdmission.deletedAt) {
+        throw new Error("Admission not found");
+      }
+      if (currentAdmission.status !== "REGISTERED") {
+        throw new Error("Admission setup has already been completed");
+      }
+
       // Check cage uniqueness INSIDE the transaction to avoid race conditions
       const existingCage = await tx.admission.findFirst({
         where: {
+          ward: validatedWard,
           cageNumber,
           status: "ACTIVE",
           id: { not: admissionId },
@@ -255,9 +273,9 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
           diagnosis,
           chiefComplaint,
           diagnosisNotes,
-          ward: validateWard(ward),
+          ward: validatedWard,
           cageNumber,
-          condition: validateCondition(condition),
+          condition: validatedCondition,
           attendingDoctor,
         },
       });
@@ -365,9 +383,12 @@ export async function updateCondition(admissionId: string, condition: string) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") {
+      return { error: "Only active admissions can be updated" };
+    }
 
     await db.admission.update({
       where: { id: admissionId },
@@ -385,15 +406,25 @@ export async function transferWard(admissionId: string, newWard: string, newCage
   try {
     await requireDoctor();
 
+    const validatedWard = validateWard(newWard);
+
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") {
+      return { error: "Only active admissions can be transferred" };
+    }
 
     await db.$transaction(async (tx: any) => {
       const existing = await tx.admission.findFirst({
-        where: { cageNumber: newCage, status: "ACTIVE", id: { not: admissionId } },
+        where: {
+          ward: validatedWard,
+          cageNumber: newCage,
+          status: "ACTIVE",
+          id: { not: admissionId },
+        },
         include: { patient: { select: { name: true } } },
       });
       if (existing) {
@@ -402,7 +433,7 @@ export async function transferWard(admissionId: string, newWard: string, newCage
 
       await tx.admission.update({
         where: { id: admissionId },
-        data: { ward: validateWard(newWard), cageNumber: newCage },
+        data: { ward: validatedWard, cageNumber: newCage },
       });
     });
 
@@ -472,9 +503,12 @@ export async function updateAdmission(admissionId: string, formData: FormData) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") {
+      return { error: "Only active admissions can be updated" };
+    }
 
     const diagnosis = (formData.get("diagnosis") as string) || null;
     const chiefComplaint = (formData.get("chiefComplaint") as string) || null;
@@ -764,9 +798,12 @@ export async function dischargePatient(admissionId: string, formData: FormData) 
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") {
+      return { error: "Only active admissions can be discharged" };
+    }
 
     // Discharge + deactivate plans atomically
     await db.$transaction(async (tx: any) => {

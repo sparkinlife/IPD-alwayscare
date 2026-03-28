@@ -6,7 +6,7 @@ import {
   checkTemperature,
   checkHeartRate,
 } from "@/lib/vitals-thresholds";
-import { isBathDue, getTodayUTCDate, getTodayIST } from "@/lib/date-utils";
+import { isBathDue, getTodayUTCDate, getNowTimeIST } from "@/lib/date-utils";
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: Request): boolean {
@@ -21,8 +21,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  
   const today = getTodayUTCDate();
+  const nowTimeStr = getNowTimeIST();
+  const [nowH, nowM] = nowTimeStr.split(":").map(Number);
+  const nowMinutes = nowH * 60 + nowM;
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
   // Fetch all active admissions with relevant data
@@ -37,8 +39,6 @@ export async function GET(request: Request) {
           administrations: {
             where: {
               scheduledDate: today,
-              wasAdministered: false,
-              wasSkipped: false,
             },
           },
         },
@@ -50,7 +50,6 @@ export async function GET(request: Request) {
           feedingSchedules: {
             include: {
               feedingLogs: {
-                where: { status: "REFUSED" },
                 orderBy: { date: "desc" },
                 take: 2,
               },
@@ -73,13 +72,16 @@ export async function GET(request: Request) {
 
     // 1. Check missed medications (30+ min overdue)
     for (const plan of admission.treatmentPlans) {
-      for (const admin of plan.administrations) {
-        const scheduledStr = admin.scheduledTime;
-        const todayStr = getTodayIST();
-        const scheduledTime = new Date(`${todayStr}T${scheduledStr}:00+05:30`);
-        const minutesOverdue = Math.floor(
-          (Date.now() - scheduledTime.getTime()) / 60000
+      for (const scheduledStr of plan.scheduledTimes) {
+        const admin = plan.administrations.find(
+          (a: any) => a.scheduledTime === scheduledStr
         );
+        if (admin && (admin.wasAdministered || admin.wasSkipped)) continue;
+
+        const [h, m] = scheduledStr.split(":").map(Number);
+        const scheduledMinutes = h * 60 + m;
+        const minutesOverdue = nowMinutes - scheduledMinutes;
+
         if (minutesOverdue > 30) {
           alerts.push({
             type: "MISSED_MED",
@@ -123,6 +125,18 @@ export async function GET(request: Request) {
     for (const diet of admission.dietPlans) {
       for (const schedule of diet.feedingSchedules) {
         if (schedule.feedingLogs.length >= 2) {
+          const [latest, previous] = schedule.feedingLogs;
+          const daysApart = Math.round(
+            (latest.date.getTime() - previous.date.getTime()) /
+              (24 * 60 * 60 * 1000)
+          );
+          const hasTwoConsecutiveRefusals =
+            latest.status === "REFUSED" &&
+            previous.status === "REFUSED" &&
+            daysApart === 1;
+
+          if (!hasTwoConsecutiveRefusals) continue;
+
           alerts.push({
             type: "MISSED_FEEDING",
             admissionId: admission.id,

@@ -12,9 +12,10 @@ export async function startFluidTherapy(admissionId: string, formData: FormData)
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     const fluidType = formData.get("fluidType") as string;
     const rate = formData.get("rate") as string;
@@ -55,10 +56,17 @@ export async function changeFluidRate(fluidTherapyId: string, formData: FormData
 
     const fluidTherapy = await db.fluidTherapy.findUnique({
       where: { id: fluidTherapyId },
-      select: { admissionId: true, rate: true },
+      select: {
+        admissionId: true,
+        rate: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!fluidTherapy) return { error: "Fluid therapy not found" };
+    if (fluidTherapy.admission.deletedAt || fluidTherapy.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.$transaction([
       db.fluidRateChange.create({
@@ -90,9 +98,18 @@ export async function updateFluidTherapy(fluidId: string, formData: FormData) {
 
     const fluid = await db.fluidTherapy.findUnique({
       where: { id: fluidId },
-      select: { admissionId: true, fluidType: true, rate: true, additives: true },
+      select: {
+        admissionId: true,
+        fluidType: true,
+        rate: true,
+        additives: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!fluid) return { error: "Fluid therapy not found" };
+    if (fluid.admission.deletedAt || fluid.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const fluidType = formData.get("fluidType") as string;
     const additives = (formData.get("additives") as string) || null;
@@ -138,10 +155,18 @@ export async function stopFluids(fluidTherapyId: string) {
 
     const fluidTherapy = await db.fluidTherapy.findUnique({
       where: { id: fluidTherapyId },
-      select: { admissionId: true, fluidType: true, rate: true },
+      select: {
+        admissionId: true,
+        fluidType: true,
+        rate: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!fluidTherapy) return { error: "Fluid therapy not found" };
+    if (fluidTherapy.admission.deletedAt || fluidTherapy.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.$transaction([
       db.fluidTherapy.update({
@@ -172,11 +197,20 @@ export async function restartFluidTherapy(fluidTherapyId: string) {
 
     const fluid = await db.fluidTherapy.findUnique({
       where: { id: fluidTherapyId },
-      select: { admissionId: true, fluidType: true, rate: true, isActive: true },
+      select: {
+        admissionId: true,
+        fluidType: true,
+        rate: true,
+        isActive: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!fluid) return { error: "Fluid therapy not found" };
     if (fluid.isActive) return { error: "Fluid therapy is already active" };
+    if (fluid.admission.deletedAt || fluid.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     await db.$transaction([
       db.fluidTherapy.update({
@@ -206,10 +240,18 @@ export async function deleteFluidTherapy(fluidTherapyId: string) {
 
     const fluid = await db.fluidTherapy.findUnique({
       where: { id: fluidTherapyId },
-      select: { admissionId: true, fluidType: true, rate: true },
+      select: {
+        admissionId: true,
+        fluidType: true,
+        rate: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
 
     if (!fluid) return { error: "Fluid therapy not found" };
+    if (fluid.admission.deletedAt || fluid.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     // Rename proofs in Google Drive
     const proofs = await db.proofAttachment.findMany({

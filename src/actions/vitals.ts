@@ -12,9 +12,10 @@ export async function recordVitals(admissionId: string, formData: FormData) {
 
     const admission = await db.admission.findUnique({
       where: { id: admissionId },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, status: true },
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
+    if (admission.status !== "ACTIVE") return { error: "Admission is no longer active" };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = { admissionId, recordedById: session.staffId };
@@ -58,9 +59,16 @@ export async function updateVitals(vitalId: string, formData: FormData) {
 
     const vital = await db.vitalRecord.findUnique({
       where: { id: vitalId },
-      select: { id: true, admissionId: true },
+      select: {
+        id: true,
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!vital) return { error: "Vital record not found" };
+    if (vital.admission.deletedAt || vital.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
@@ -107,9 +115,15 @@ export async function deleteVitals(vitalId: string) {
 
     const vital = await db.vitalRecord.findUnique({
       where: { id: vitalId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!vital) return { error: "Vital record not found" };
+    if (vital.admission.deletedAt || vital.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const proofs = await db.proofAttachment.findMany({
       where: { recordId: vitalId, recordType: "VitalRecord" },

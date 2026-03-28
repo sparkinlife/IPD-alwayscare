@@ -119,8 +119,7 @@ export async function GET() {
 
           const [h, m] = time.split(":").map(Number);
           const scheduledMinutes = h * 60 + m;
-          let diff = nowMinutes - scheduledMinutes; // positive = past due
-          if (diff < -720) diff += 1440; // Midnight crossing
+          const diff = nowMinutes - scheduledMinutes; // positive = past due
 
           const baseId = `med-${plan.id}-${time}`;
           const desc = `${plan.drugName} ${plan.dose}`;
@@ -181,8 +180,7 @@ export async function GET() {
 
           const [h, m] = schedule.scheduledTime.split(":").map(Number);
           const scheduledMinutes = h * 60 + m;
-          let diff = nowMinutes - scheduledMinutes;
-          if (diff < -720) diff += 1440; // Midnight crossing
+          const diff = nowMinutes - scheduledMinutes;
 
           const baseId = `food-${schedule.id}-${schedule.scheduledTime}`;
 

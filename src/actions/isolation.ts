@@ -12,9 +12,15 @@ export async function logDisinfection(isolationProtocolId: string) {
 
     const protocol = await db.isolationProtocol.findUnique({
       where: { id: isolationProtocolId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!protocol) return { error: "Isolation protocol not found" };
+    if (protocol.admission.deletedAt || protocol.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const disinfectionLog = await db.disinfectionLog.create({
       data: { isolationProtocolId, performedById: session.staffId },
@@ -38,9 +44,19 @@ export async function updateIsolationProtocol(
     // Fetch current protocol to compare pcrStatus
     const currentProtocol = await db.isolationProtocol.findUnique({
       where: { id: protocolId },
-      select: { pcrStatus: true, admissionId: true },
+      select: {
+        pcrStatus: true,
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!currentProtocol) return { error: "Protocol not found" };
+    if (
+      currentProtocol.admission.deletedAt ||
+      currentProtocol.admission.status !== "ACTIVE"
+    ) {
+      return { error: "Admission is no longer active" };
+    }
 
     const pcrStatus = formData.get("pcrStatus") as string;
     const pcrTrend = (formData.get("pcrTrend") as string) || undefined;
@@ -84,9 +100,15 @@ export async function updateIsolationSetup(protocolId: string, formData: FormDat
 
     const protocol = await db.isolationProtocol.findUnique({
       where: { id: protocolId },
-      select: { admissionId: true },
+      select: {
+        admissionId: true,
+        admission: { select: { deletedAt: true, status: true } },
+      },
     });
     if (!protocol) return { error: "Protocol not found" };
+    if (protocol.admission.deletedAt || protocol.admission.status !== "ACTIVE") {
+      return { error: "Admission is no longer active" };
+    }
 
     const disease = formData.get("disease") as string;
     const ppeJson = formData.get("ppeRequired") as string;
@@ -130,9 +152,22 @@ export async function deleteDisinfectionLog(logId: string) {
 
     const log = await db.disinfectionLog.findUnique({
       where: { id: logId },
-      select: { isolationProtocol: { select: { admissionId: true } } },
+      select: {
+        isolationProtocol: {
+          select: {
+            admissionId: true,
+            admission: { select: { deletedAt: true, status: true } },
+          },
+        },
+      },
     });
     if (!log) return { error: "Disinfection log not found" };
+    if (
+      log.isolationProtocol.admission.deletedAt ||
+      log.isolationProtocol.admission.status !== "ACTIVE"
+    ) {
+      return { error: "Admission is no longer active" };
+    }
 
     const proofs = await db.proofAttachment.findMany({
       where: { recordId: logId, recordType: "DisinfectionLog" },

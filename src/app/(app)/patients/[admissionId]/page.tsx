@@ -120,18 +120,21 @@ export default async function PatientDetailPage(props: {
       }),
       db.admission.findMany({
         where: { status: "ACTIVE", deletedAt: null, id: { not: admissionId } },
-        select: { cageNumber: true },
+        select: { ward: true, cageNumber: true },
       }),
     ]);
     const occupiedSet = new Set(
-      occupiedCages.map((a: any) => a.cageNumber).filter(Boolean) as string[]
+      occupiedCages
+        .filter((a: any) => a.ward && a.cageNumber)
+        .map((a: any) => `${a.ward}:${a.cageNumber}`)
     );
     availableCages = allCages
-      .filter((c: any) => !occupiedSet.has(c.cageNumber))
+      .filter((c: any) => !occupiedSet.has(`${c.ward}:${c.cageNumber}`))
       .map((c: any) => ({ ward: c.ward, cageNumber: c.cageNumber }));
   }
 
   const isActive = admission.status === "ACTIVE";
+  const canEdit = isDoctor && isActive;
 
   return (
     <div className={isDoctor ? "pb-32" : ""}>
@@ -144,7 +147,7 @@ export default async function PatientDetailPage(props: {
           <VitalsTab
             admissionId={admissionId}
             vitals={admission.vitalRecords}
-            isDoctor={isDoctor}
+            isDoctor={canEdit}
             admissionWeight={admission.patient.weight ?? null}
             patientName={admission.patient.name}
           />
@@ -154,35 +157,35 @@ export default async function PatientDetailPage(props: {
             admissionId={admissionId}
             treatmentPlans={admission.treatmentPlans}
             fluidTherapies={admission.fluidTherapies}
-            isDoctor={isDoctor}
+            isDoctor={canEdit}
             patientName={admission.patient.name}
             staffName={session.name}
           />
         )}
         {tab === "food" && (
-          <FoodTab admissionId={admissionId} dietPlans={admission.dietPlans} isDoctor={session.role === "DOCTOR"} patientName={admission.patient.name} />
+          <FoodTab admissionId={admissionId} dietPlans={admission.dietPlans} isDoctor={canEdit} patientName={admission.patient.name} />
         )}
         {tab === "notes" && (
-          <NotesTab admissionId={admissionId} notes={admission.clinicalNotes} isDoctor={isDoctor} />
+          <NotesTab admissionId={admissionId} notes={admission.clinicalNotes} isDoctor={canEdit} />
         )}
         {tab === "logs" && (
           <LogsTab admission={admission} />
         )}
         {tab === "labs" && (
-          <LabsTab admissionId={admissionId} labResults={admission.labResults} isDoctor={isDoctor} />
+          <LabsTab admissionId={admissionId} labResults={admission.labResults} isDoctor={canEdit} />
         )}
         {tab === "bath" && (
-          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} isDoctor={isDoctor} patientName={admission.patient.name} />
+          <BathTab admissionId={admissionId} bathLogs={admission.bathLogs} admissionDate={admission.admissionDate} isDoctor={canEdit} patientName={admission.patient.name} />
         )}
         {tab === "isolation" && admission.isolationProtocol && (
-          <IsolationTab admissionId={admissionId} isolationProtocol={admission.isolationProtocol} labResults={admission.labResults} isDoctor={session.role === "DOCTOR"} patientName={admission.patient.name} />
+          <IsolationTab admissionId={admissionId} isolationProtocol={admission.isolationProtocol} labResults={admission.labResults} isDoctor={canEdit} patientName={admission.patient.name} />
         )}
         {tab === "photos" && (
           <PhotosTab
             patientId={admission.patientId}
             patientName={admission.patient.name}
             media={patientMedia}
-            isDoctor={isDoctor}
+            isDoctor={canEdit}
           />
         )}
       </div>

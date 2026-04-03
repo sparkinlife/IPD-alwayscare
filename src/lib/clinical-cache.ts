@@ -48,7 +48,7 @@ export function patientShellTag(admissionId: string): string {
 
 export function patientTabTag(
   admissionId: string,
-  tab: PatientCacheTab
+  tab: Exclude<PatientCacheTab, "shell">
 ): string {
   return `patient:${admissionId}:${tab}`;
 }

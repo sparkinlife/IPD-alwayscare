@@ -28,7 +28,6 @@ test("clinical cache constants and tags match the approved contract", () => {
   assert.equal(notificationsTag("PARAVET"), "notifications:paravet");
   assert.equal(patientShellTag("adm-1"), "patient:adm-1:shell");
   assert.equal(patientTabTag("adm-1", "vitals"), "patient:adm-1:vitals");
-  assert.equal(patientTabTag("adm-1", "shell"), "patient:adm-1:shell");
   assert.equal(patientTabTag("adm-1", "meds"), "patient:adm-1:meds");
   assert.equal(patientTabTag("adm-1", "food"), "patient:adm-1:food");
   assert.equal(patientTabTag("adm-1", "notes"), "patient:adm-1:notes");
@@ -38,3 +37,6 @@ test("clinical cache constants and tags match the approved contract", () => {
   assert.equal(patientTabTag("adm-1", "isolation"), "patient:adm-1:isolation");
   assert.equal(patientTabTag("adm-1", "logs"), "patient:adm-1:logs");
 });
+
+// @ts-expect-error shell is intentionally excluded from patientTabTag
+patientTabTag("adm-1", "shell");

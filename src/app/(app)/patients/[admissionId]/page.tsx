@@ -81,9 +81,9 @@ export default async function PatientDetailPage(props: {
   const isolationData = loadPlan.isolation
     ? await getPatientIsolationData(admissionId)
     : { isolationProtocol: null, labResults: [] };
-  const logsAdmission = loadPlan.logs
+  const logEntries = loadPlan.logs
     ? await getPatientLogsData(admissionId, today, sevenDaysAgo)
-    : null;
+    : [];
   const patientMedia = loadPlan.photos
     ? await getPatientPhotosData(admission.patientId)
     : [];
@@ -129,7 +129,7 @@ export default async function PatientDetailPage(props: {
           <NotesTab admissionId={admissionId} notes={notes} isDoctor={canEdit} />
         )}
         {tab === "logs" && (
-          logsAdmission && <LogsTab admission={logsAdmission} />
+          <LogsTab entries={logEntries} />
         )}
         {tab === "labs" && (
           <LabsTab

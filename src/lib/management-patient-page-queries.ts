@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import type { LogsAdmission } from "@/lib/logs-read-model";
+import type { LogsTimelineEntry } from "@/lib/logs-read-model";
+import { getLogsTimelineEntries } from "@/lib/logs-queries";
 
 export async function getManagementPatientPageShell(admissionId: string) {
   return db.admission.findFirst({
@@ -261,109 +262,6 @@ export async function getManagementPatientMediaProofs(admissionId: string) {
 
 export async function getManagementPatientLogsData(
   admissionId: string
-): Promise<LogsAdmission | null> {
-  return db.admission.findFirst({
-    where: { id: admissionId, deletedAt: null },
-    select: {
-      id: true,
-      treatmentPlans: {
-        where: { deletedAt: null },
-        select: {
-          drugName: true,
-          dose: true,
-          route: true,
-          administrations: {
-            orderBy: [{ scheduledDate: "desc" }, { scheduledTime: "asc" }],
-            select: {
-              scheduledTime: true,
-              wasAdministered: true,
-              wasSkipped: true,
-              skipReason: true,
-              actualTime: true,
-              createdAt: true,
-              administeredBy: { select: { name: true } },
-            },
-          },
-        },
-      },
-      vitalRecords: {
-        orderBy: { recordedAt: "desc" },
-        select: {
-          recordedAt: true,
-          temperature: true,
-          heartRate: true,
-          respRate: true,
-          painScore: true,
-          weight: true,
-          recordedBy: { select: { name: true } },
-        },
-      },
-      dietPlans: {
-        where: { deletedAt: null },
-        select: {
-          feedingSchedules: {
-            select: {
-              scheduledTime: true,
-              foodType: true,
-              feedingLogs: {
-                orderBy: { date: "desc" },
-                select: {
-                  status: true,
-                  createdAt: true,
-                  loggedBy: { select: { name: true } },
-                },
-              },
-            },
-          },
-        },
-      },
-      bathLogs: {
-        orderBy: { bathedAt: "desc" },
-        select: {
-          bathedAt: true,
-          notes: true,
-          bathedBy: { select: { name: true } },
-        },
-      },
-      clinicalNotes: {
-        orderBy: { recordedAt: "desc" },
-        select: {
-          recordedAt: true,
-          category: true,
-          content: true,
-          recordedBy: { select: { name: true, role: true } },
-        },
-      },
-      isolationProtocol: {
-        select: {
-          disinfectionLogs: {
-            orderBy: { performedAt: "desc" },
-            select: {
-              performedAt: true,
-              performedBy: { select: { name: true } },
-            },
-          },
-        },
-      },
-      fluidTherapies: {
-        select: {
-          fluidType: true,
-          rate: true,
-          startTime: true,
-          endTime: true,
-          createdBy: { select: { name: true } },
-          rateChanges: {
-            orderBy: { changedAt: "desc" },
-            select: {
-              oldRate: true,
-              newRate: true,
-              changedAt: true,
-              changedBy: { select: { name: true } },
-              reason: true,
-            },
-          },
-        },
-      },
-    },
-  });
+): Promise<LogsTimelineEntry[]> {
+  return getLogsTimelineEntries(admissionId);
 }

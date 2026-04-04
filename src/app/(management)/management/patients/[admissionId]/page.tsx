@@ -71,7 +71,7 @@ export default async function ManagementPatientPage({
     isolationProtocol,
     patientMedia,
     proofs,
-    logsAdmission,
+    logEntries,
   ] = await Promise.all([
     loadPlan.overview
       ? getManagementPatientOverviewData(admissionId, today)
@@ -105,7 +105,7 @@ export default async function ManagementPatientPage({
       : Promise.resolve([]),
     loadPlan.logs
       ? getManagementPatientLogsData(admissionId)
-      : Promise.resolve(null),
+      : Promise.resolve([]),
   ]);
 
   const latestVital = overviewData?.vitalRecords[0] ?? null;
@@ -799,9 +799,7 @@ export default async function ManagementPatientPage({
 
       {tab === "logs" && (
         <section className="rounded-xl border border-border bg-white p-4 shadow-sm">
-          {logsAdmission && (
-            <LogsTab admission={logsAdmission} defaultFilter="all" />
-          )}
+          <LogsTab entries={logEntries} defaultFilter="all" />
         </section>
       )}
     </div>

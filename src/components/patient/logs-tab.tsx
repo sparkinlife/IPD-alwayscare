@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatTimeIST, getTodayIST } from "@/lib/date-utils";
-import { NOTE_ROLE_COLORS, NOTE_CATEGORY_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { LogsAdmission } from "@/lib/logs-read-model";
+import type { LogsTimelineEntry } from "@/lib/logs-read-model";
 
 const IST_ZONE = "Asia/Kolkata";
 
@@ -13,15 +12,7 @@ const IST_ZONE = "Asia/Kolkata";
 
 export interface LogsTabProps {
   defaultFilter?: "today" | "all";
-  admission: LogsAdmission;
-}
-
-interface LogEntry {
-  time: Date;
-  icon: string;
-  description: string;
-  by: string;
-  roleColor?: string;
+  entries: LogsTimelineEntry[];
 }
 
 interface TimeBucket {
@@ -29,7 +20,7 @@ interface TimeBucket {
   dateLabel: string;
   hourLabel: string;
   sortTime: number;
-  entries: LogEntry[];
+  entries: LogsTimelineEntry[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,158 +33,20 @@ function getISTHour(date: Date): number {
   return parseInt(formatInTimeZone(date, IST_ZONE, "HH"), 10);
 }
 
-function buildVitalDescription(v: LogsTabProps["admission"]["vitalRecords"][number]): string {
-  const parts: string[] = [];
-  if (v.temperature != null) parts.push(`Temp ${v.temperature}°C`);
-  if (v.heartRate != null) parts.push(`HR ${v.heartRate}`);
-  if (v.respRate != null) parts.push(`RR ${v.respRate}`);
-  if (v.painScore != null) parts.push(`Pain ${v.painScore}/10`);
-  if (v.weight != null) parts.push(`Wt ${v.weight}kg`);
-  return parts.length > 0 ? parts.join(", ") : "Vitals recorded";
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  EATEN: "Eaten",
-  PARTIAL: "Partial",
-  REFUSED: "Refused",
-  PENDING: "Pending",
-};
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function LogsTab({ admission, defaultFilter = "today" }: LogsTabProps) {
+export function LogsTab({ entries, defaultFilter = "today" }: LogsTabProps) {
   const [selectedDate, setSelectedDate] = useState<string>(
     defaultFilter === "all" ? "" : getTodayIST()
   );
-
-  // Flatten all records into log entries
-  const allEntries = useMemo<LogEntry[]>(() => {
-    const entries: LogEntry[] = [];
-
-    // Medication administrations
-    for (const plan of admission.treatmentPlans) {
-      for (const adm of plan.administrations) {
-        if (!adm.wasAdministered && !adm.wasSkipped) continue;
-        const time = adm.actualTime ?? adm.createdAt;
-        const statusLabel = adm.wasAdministered
-          ? "Given"
-          : `Skipped${adm.skipReason ? `: ${adm.skipReason}` : ""}`;
-        entries.push({
-          time,
-          icon: "💊",
-          description: `${plan.drugName} ${plan.dose} ${plan.route} — ${statusLabel}`,
-          by: adm.administeredBy?.name ?? "—",
-        });
-      }
-    }
-
-    // Vital records
-    for (const v of admission.vitalRecords) {
-      entries.push({
-        time: v.recordedAt,
-        icon: "🌡",
-        description: buildVitalDescription(v),
-        by: v.recordedBy?.name ?? "—",
-      });
-    }
-
-    // Feeding logs (non-PENDING)
-    for (const plan of admission.dietPlans) {
-      for (const schedule of plan.feedingSchedules) {
-        for (const log of schedule.feedingLogs) {
-          if (log.status === "PENDING") continue;
-          const statusLabel = STATUS_LABELS[log.status] ?? log.status;
-          entries.push({
-            time: log.createdAt,
-            icon: "🍽",
-            description: `${schedule.scheduledTime} ${schedule.foodType}: ${statusLabel}`,
-            by: log.loggedBy?.name ?? "—",
-          });
-        }
-      }
-    }
-
-    // Bath logs
-    for (const bath of admission.bathLogs) {
-      entries.push({
-        time: bath.bathedAt,
-        icon: "🛁",
-        description: bath.notes ? `Bath given — ${bath.notes}` : "Bath given",
-        by: bath.bathedBy?.name ?? "—",
-      });
-    }
-
-    // Clinical notes
-    for (const note of admission.clinicalNotes) {
-      const categoryLabel = NOTE_CATEGORY_LABELS[note.category] ?? note.category;
-      const content =
-        note.content.length > 100
-          ? note.content.slice(0, 100) + "…"
-          : note.content;
-      const roleColor =
-        NOTE_ROLE_COLORS[note.recordedBy?.role ?? ""] ?? "text-gray-500";
-      entries.push({
-        time: note.recordedAt,
-        icon: "📝",
-        description: `[${categoryLabel}] ${content}`,
-        by: note.recordedBy?.name ?? "—",
-        roleColor,
-      });
-    }
-
-    // Disinfection logs
-    if (admission.isolationProtocol) {
-      for (const log of admission.isolationProtocol.disinfectionLogs) {
-        entries.push({
-          time: log.performedAt,
-          icon: "🧹",
-          description: "Ward disinfection performed",
-          by: log.performedBy?.name ?? "—",
-        });
-      }
-    }
-
-    // Fluid therapies — start events and rate changes and stop events
-    for (const fluid of admission.fluidTherapies) {
-      entries.push({
-        time: fluid.startTime,
-        icon: "💧",
-        description: `IV Fluid started: ${fluid.fluidType} @ ${fluid.rate}`,
-        by: fluid.createdBy?.name ?? "—",
-      });
-
-      if (fluid.endTime) {
-        entries.push({
-          time: fluid.endTime,
-          icon: "⏹",
-          description: `IV Fluid stopped: ${fluid.fluidType}`,
-          by: fluid.createdBy?.name ?? "—",
-        });
-      }
-
-      for (const change of fluid.rateChanges) {
-        const reasonPart = change.reason ? ` (${change.reason})` : "";
-        entries.push({
-          time: change.changedAt,
-          icon: "💧",
-          description: `IV rate changed: ${change.oldRate} → ${change.newRate}${reasonPart}`,
-          by: change.changedBy?.name ?? "—",
-        });
-      }
-    }
-
-    // Sort descending by time
-    entries.sort((a, b) => b.time.getTime() - a.time.getTime());
-    return entries;
-  }, [admission]);
 
   // Filter to selected date (IST). Empty date = all history.
   const filteredEntries = useMemo(
     () =>
       selectedDate
-        ? allEntries.filter((e) => getISTDateStr(e.time) === selectedDate)
-        : allEntries,
-    [allEntries, selectedDate]
+        ? entries.filter((entry) => getISTDateStr(entry.time) === selectedDate)
+        : entries,
+    [entries, selectedDate]
   );
 
   // Group by IST date+hour (descending order — newest bucket first)

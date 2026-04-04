@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { LogsAdmission } from "@/lib/logs-read-model";
 
 export async function getManagementPatientPageShell(admissionId: string) {
   return db.admission.findFirst({
@@ -258,7 +259,9 @@ export async function getManagementPatientMediaProofs(admissionId: string) {
   });
 }
 
-export async function getManagementPatientLogsData(admissionId: string) {
+export async function getManagementPatientLogsData(
+  admissionId: string
+): Promise<LogsAdmission | null> {
   return db.admission.findFirst({
     where: { id: admissionId, deletedAt: null },
     select: {

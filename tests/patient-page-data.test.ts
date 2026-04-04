@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getPatientTabLoadPlan } from "../src/lib/patient-page-data";
+import {
+  getPatientTabLoadPlan,
+  normalizePatientTab,
+} from "../src/lib/patient-page-data";
 
 test("vitals tab only requests shell, vitals, and doctor actions", () => {
   assert.deepEqual(getPatientTabLoadPlan("vitals", true), {
@@ -38,4 +41,9 @@ test("logs tab opts into the broad history load", () => {
   const plan = getPatientTabLoadPlan("logs", true);
   assert.equal(plan.logs, true);
   assert.equal(plan.availableCages, true);
+});
+
+test("invalid patient tabs normalize to vitals", () => {
+  assert.equal(normalizePatientTab(undefined), "vitals");
+  assert.equal(normalizePatientTab("wat"), "vitals");
 });

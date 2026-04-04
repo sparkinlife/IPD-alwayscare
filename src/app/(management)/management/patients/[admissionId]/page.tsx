@@ -25,7 +25,7 @@ import {
   getPatientPhotosData,
   getPatientVitalsData,
 } from "@/lib/patient-page-queries";
-import { LogsTab, type LogsTabProps } from "@/components/patient/logs-tab";
+import { LogsTab } from "@/components/patient/logs-tab";
 import { cn } from "@/lib/utils";
 
 interface ManagementPatientPageProps {
@@ -800,10 +800,7 @@ export default async function ManagementPatientPage({
       {tab === "logs" && (
         <section className="rounded-xl border border-border bg-white p-4 shadow-sm">
           {logsAdmission && (
-            <LogsTab
-              admission={logsAdmission as LogsTabProps["admission"]}
-              defaultFilter="all"
-            />
+            <LogsTab admission={logsAdmission} defaultFilter="all" />
           )}
         </section>
       )}

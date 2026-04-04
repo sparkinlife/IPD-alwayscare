@@ -5,6 +5,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { formatTimeIST, getTodayIST } from "@/lib/date-utils";
 import { NOTE_ROLE_COLORS, NOTE_CATEGORY_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import type { LogsAdmission } from "@/lib/logs-read-model";
 
 const IST_ZONE = "Asia/Kolkata";
 
@@ -12,74 +13,7 @@ const IST_ZONE = "Asia/Kolkata";
 
 export interface LogsTabProps {
   defaultFilter?: "today" | "all";
-  admission: {
-    id: string;
-    treatmentPlans: Array<{
-      drugName: string;
-      dose: string;
-      route: string;
-      administrations: Array<{
-        scheduledTime: string;
-        wasAdministered: boolean;
-        wasSkipped: boolean;
-        skipReason: string | null;
-        actualTime: Date | null;
-        createdAt: Date;
-        administeredBy: { name: string } | null;
-      }>;
-    }>;
-    vitalRecords: Array<{
-      recordedAt: Date;
-      temperature: number | null;
-      heartRate: number | null;
-      respRate: number | null;
-      painScore: number | null;
-      weight: number | null;
-      recordedBy: { name: string };
-    }>;
-    dietPlans: Array<{
-      feedingSchedules: Array<{
-        scheduledTime: string;
-        foodType: string;
-        feedingLogs: Array<{
-          status: string;
-          createdAt: Date;
-          loggedBy: { name: string };
-        }>;
-      }>;
-    }>;
-    bathLogs: Array<{
-      bathedAt: Date;
-      bathedBy: { name: string };
-      notes: string | null;
-    }>;
-    clinicalNotes: Array<{
-      recordedAt: Date;
-      category: string;
-      content: string;
-      recordedBy: { name: string; role: string };
-    }>;
-    isolationProtocol: {
-      disinfectionLogs: Array<{
-        performedAt: Date;
-        performedBy: { name: string };
-      }>;
-    } | null;
-    fluidTherapies: Array<{
-      fluidType: string;
-      rate: string;
-      startTime: Date;
-      endTime: Date | null;
-      createdBy: { name: string };
-      rateChanges: Array<{
-        oldRate: string;
-        newRate: string;
-        changedAt: Date;
-        changedBy: { name: string };
-        reason: string | null;
-      }>;
-    }>;
-  };
+  admission: LogsAdmission;
 }
 
 interface LogEntry {

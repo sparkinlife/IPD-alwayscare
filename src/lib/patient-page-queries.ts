@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { LogsAdmission } from "@/lib/logs-read-model";
 
 export async function getPatientPageShell(admissionId: string) {
   return db.admission.findFirst({
@@ -241,7 +242,7 @@ export async function getPatientLogsData(
   admissionId: string,
   today: Date,
   sevenDaysAgo: Date
-) {
+): Promise<LogsAdmission | null> {
   return db.admission.findFirst({
     where: { id: admissionId, deletedAt: null },
     select: {

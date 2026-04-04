@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { TopHeader } from "@/components/layout/top-header";
@@ -6,7 +7,7 @@ import { FAB } from "@/components/layout/fab";
 import { NotificationProvider } from "@/components/layout/notification-provider";
 import { CriticalBanner } from "@/components/layout/critical-banner";
 
-export default async function AppLayout({
+async function AppLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -23,5 +24,17 @@ export default async function AppLayout({
       <FAB />
       <BottomNav />
     </NotificationProvider>
+  );
+}
+
+export default function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </Suspense>
   );
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { connection } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getTodayUTCDate, isBathDue, parseIntervalHours } from "@/lib/date-utils";
@@ -25,6 +26,7 @@ export interface Notification {
 
 export async function GET() {
   try {
+    await connection();
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logout } from "@/actions/auth";
@@ -6,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AutoPushEnroll } from "@/components/management/auto-push-enroll";
 
-export default async function ManagementLayout({
+async function ManagementLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -44,5 +45,17 @@ export default async function ManagementLayout({
 
       <main className="mx-auto max-w-5xl p-4">{children}</main>
     </div>
+  );
+}
+
+export default function ManagementLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <ManagementLayoutContent>{children}</ManagementLayoutContent>
+    </Suspense>
   );
 }

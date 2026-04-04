@@ -17,6 +17,10 @@ import {
 import { ActionUserError, handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 import {
+  getAdmissionMutationTags,
+  updateClinicalTags,
+} from "@/lib/clinical-revalidation";
+import {
   admissionDashboardInvalidations,
   invalidateDashboardTags,
 } from "@/lib/dashboard-revalidation";
@@ -407,7 +411,9 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
     });
 
     invalidateDashboardTags("summary", "queue", "setup");
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/");
+    revalidatePath("/schedule");
   } catch (error) {
     return handleActionError(error);
   }
@@ -478,8 +484,10 @@ export async function transferWard(admissionId: string, newWard: string, newCage
     });
 
     invalidateDashboardTags(...admissionDashboardInvalidations.transferWard);
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
+    revalidatePath("/schedule");
     return { success: true };
   } catch (error) {
     return handleActionError(error);
@@ -531,7 +539,9 @@ export async function updatePatient(patientId: string, formData: FormData) {
     });
 
     invalidateDashboardTags("queue", "setup");
+    updateClinicalTags(getAdmissionMutationTags(admission?.id));
     revalidatePath("/");
+    revalidatePath("/schedule");
     if (admission) revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
   } catch (error) {
@@ -617,8 +627,10 @@ export async function archivePatient(admissionId: string) {
     });
 
     invalidateDashboardTags("summary", "queue", "setup");
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/");
     revalidatePath("/archive");
+    revalidatePath("/schedule");
   } catch (error) {
     return handleActionError(error);
   }
@@ -658,8 +670,10 @@ export async function restorePatient(patientId: string) {
     });
 
     invalidateDashboardTags("summary", "queue", "setup");
+    updateClinicalTags(getAdmissionMutationTags());
     revalidatePath("/");
     revalidatePath("/archive");
+    revalidatePath("/schedule");
     return { success: true };
   } catch (error) {
     return handleActionError(error);
@@ -883,7 +897,9 @@ export async function dischargePatient(admissionId: string, formData: FormData) 
     });
 
     invalidateDashboardTags(...admissionDashboardInvalidations.dischargePatient);
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/");
+    revalidatePath("/schedule");
   } catch (error) {
     return handleActionError(error);
   }

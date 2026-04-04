@@ -5,6 +5,10 @@ import { db } from "@/lib/db";
 import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
+import {
+  getBathMutationTags,
+  updateClinicalTags,
+} from "@/lib/clinical-revalidation";
 import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 export async function logBath(admissionId: string, formData: FormData) {
@@ -23,6 +27,7 @@ export async function logBath(admissionId: string, formData: FormData) {
       data: { admissionId, bathedById: session.staffId, notes },
     });
     invalidateDashboardTags("summary", "queue");
+    updateClinicalTags(getBathMutationTags(admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     revalidatePath("/schedule");
@@ -55,7 +60,9 @@ export async function updateBath(bathId: string, formData: FormData) {
       data: { notes },
     });
 
+    updateClinicalTags(getBathMutationTags(bath.admissionId));
     revalidatePath("/patients/[admissionId]", "page");
+    revalidatePath("/schedule");
     return { success: true };
   } catch (error) {
     return handleActionError(error);
@@ -90,6 +97,7 @@ export async function deleteBath(bathId: string) {
 
     await db.bathLog.delete({ where: { id: bathId } });
     invalidateDashboardTags("summary", "queue");
+    updateClinicalTags(getBathMutationTags(bath.admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     revalidatePath("/schedule");

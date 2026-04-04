@@ -6,6 +6,7 @@ import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { validateFeedingStatus } from "@/lib/validators";
 import { handleActionError } from "@/lib/action-utils";
 import { toUTCDate } from "@/lib/date-utils";
+import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 type SubmittedFeedingSchedule = {
   id?: string;
@@ -31,7 +32,7 @@ export async function createDietPlan(admissionId: string, formData: FormData) {
 
     if (!dietType) return { error: "Diet type is required" };
 
-    let schedules: SubmittedFeedingSchedule[] = [];
+    const schedules: SubmittedFeedingSchedule[] = [];
     if (schedulesRaw) {
       let parsed: unknown;
       try {
@@ -226,6 +227,7 @@ export async function createDietPlan(admissionId: string, formData: FormData) {
       }
     });
 
+    invalidateDashboardTags("summary");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/schedule");
     revalidatePath("/management");

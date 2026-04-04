@@ -1,5 +1,7 @@
 "use server";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -14,6 +16,7 @@ import {
 } from "@/lib/validators";
 import { ActionUserError, handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
+import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 export async function registerPatient(_prevState: unknown, formData: FormData) {
   try {
@@ -60,6 +63,7 @@ export async function registerPatient(_prevState: unknown, formData: FormData) {
       return { patientId: patient.id, admissionId: admission.id };
     });
 
+    invalidateDashboardTags("setup");
     revalidatePath("/");
     return { success: true, admissionId: result.admissionId, patientId: result.patientId };
   } catch (error) {
@@ -113,6 +117,7 @@ export async function cancelRegistration(admissionId: string) {
       }
     });
 
+    invalidateDashboardTags("setup");
     revalidatePath("/");
     return { success: true };
   } catch (error) {
@@ -166,6 +171,7 @@ export async function editRegisteredPatient(admissionId: string, formData: FormD
       });
     });
 
+    invalidateDashboardTags("setup");
     revalidatePath("/");
     return { success: true };
   } catch (error) {
@@ -397,6 +403,7 @@ export async function clinicalSetup(admissionId: string, formData: FormData) {
       }
     });
 
+    invalidateDashboardTags("summary", "queue", "setup");
     revalidatePath("/");
   } catch (error) {
     return handleActionError(error);
@@ -421,6 +428,7 @@ export async function updateCondition(admissionId: string, condition: string) {
       where: { id: admissionId },
       data: { condition: validateCondition(condition) },
     });
+    invalidateDashboardTags("summary", "queue");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     return { success: true };
@@ -466,6 +474,7 @@ export async function transferWard(admissionId: string, newWard: string, newCage
       });
     });
 
+    invalidateDashboardTags("summary", "queue");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     return { success: true };
@@ -518,6 +527,7 @@ export async function updatePatient(patientId: string, formData: FormData) {
       select: { id: true },
     });
 
+    invalidateDashboardTags("queue", "setup");
     revalidatePath("/");
     if (admission) revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
@@ -549,6 +559,7 @@ export async function updateAdmission(admissionId: string, formData: FormData) {
       data: { diagnosis, chiefComplaint, diagnosisNotes, attendingDoctor },
     });
 
+    invalidateDashboardTags("summary", "queue");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     return { success: true };
@@ -602,6 +613,7 @@ export async function archivePatient(admissionId: string) {
       });
     });
 
+    invalidateDashboardTags("summary", "queue", "setup");
     revalidatePath("/");
     revalidatePath("/archive");
   } catch (error) {
@@ -642,6 +654,7 @@ export async function restorePatient(patientId: string) {
       }
     });
 
+    invalidateDashboardTags("summary", "queue", "setup");
     revalidatePath("/");
     revalidatePath("/archive");
     return { success: true };
@@ -866,6 +879,7 @@ export async function dischargePatient(admissionId: string, formData: FormData) 
       await tx.fluidTherapy.updateMany({ where: { admissionId, isActive: true }, data: { isActive: false } });
     });
 
+    invalidateDashboardTags("summary", "queue");
     revalidatePath("/");
   } catch (error) {
     return handleActionError(error);

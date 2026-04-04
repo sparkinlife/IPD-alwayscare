@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
+import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 export async function logBath(admissionId: string, formData: FormData) {
   try {
@@ -21,6 +22,7 @@ export async function logBath(admissionId: string, formData: FormData) {
     const bathLog = await db.bathLog.create({
       data: { admissionId, bathedById: session.staffId, notes },
     });
+    invalidateDashboardTags("summary", "queue");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     revalidatePath("/schedule");
@@ -87,6 +89,7 @@ export async function deleteBath(bathId: string) {
     });
 
     await db.bathLog.delete({ where: { id: bathId } });
+    invalidateDashboardTags("summary", "queue");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     revalidatePath("/schedule");

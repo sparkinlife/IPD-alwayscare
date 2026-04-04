@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
+import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 export async function recordVitals(admissionId: string, formData: FormData) {
   try {
@@ -46,6 +47,7 @@ export async function recordVitals(admissionId: string, formData: FormData) {
     if (notes) data.notes = notes;
 
     const vitalRecord = await db.vitalRecord.create({ data });
+    invalidateDashboardTags("queue");
     revalidatePath("/patients/[admissionId]", "page");
     return { success: true, id: vitalRecord.id };
   } catch (error) {
@@ -102,6 +104,7 @@ export async function updateVitals(vitalId: string, formData: FormData) {
     data.notes = notes || null;
 
     await db.vitalRecord.update({ where: { id: vitalId }, data });
+    invalidateDashboardTags("queue");
     revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
   } catch (error) {
@@ -136,6 +139,7 @@ export async function deleteVitals(vitalId: string) {
     });
 
     await db.vitalRecord.delete({ where: { id: vitalId } });
+    invalidateDashboardTags("queue");
     revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
   } catch (error) {

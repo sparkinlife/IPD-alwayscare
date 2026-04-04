@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
+import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 export async function logDisinfection(isolationProtocolId: string) {
   try {
@@ -82,7 +83,7 @@ export async function updateIsolationProtocol(
       data.clearedDate = null;
     }
 
-    const protocol = await db.isolationProtocol.update({
+    await db.isolationProtocol.update({
       where: { id: protocolId },
       data,
     });
@@ -138,6 +139,7 @@ export async function updateIsolationSetup(protocolId: string, formData: FormDat
       },
     });
 
+    invalidateDashboardTags("setup");
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/isolation");
     return { success: true };

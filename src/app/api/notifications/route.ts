@@ -19,6 +19,9 @@ export async function GET() {
     return NextResponse.json({ notifications, count: notifications.length });
   } catch (error) {
     console.error("[notifications] Failed:", error);
-    return NextResponse.json({ notifications: [], count: 0 });
+    return NextResponse.json(
+      { error: "Failed to load notifications" },
+      { status: 500 }
+    );
   }
 }

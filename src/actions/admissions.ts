@@ -71,6 +71,7 @@ export async function registerPatient(_prevState: unknown, formData: FormData) {
     });
 
     invalidateDashboardTags("setup");
+    updateClinicalTags(getAdmissionMutationTags(result.admissionId));
     revalidatePath("/");
     return { success: true, admissionId: result.admissionId, patientId: result.patientId };
   } catch (error) {
@@ -125,6 +126,7 @@ export async function cancelRegistration(admissionId: string) {
     });
 
     invalidateDashboardTags("setup");
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/");
     return { success: true };
   } catch (error) {
@@ -179,6 +181,7 @@ export async function editRegisteredPatient(admissionId: string, formData: FormD
     });
 
     invalidateDashboardTags("setup");
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/");
     return { success: true };
   } catch (error) {
@@ -438,6 +441,7 @@ export async function updateCondition(admissionId: string, condition: string) {
       data: { condition: validateCondition(condition) },
     });
     invalidateDashboardTags("summary", "queue");
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     return { success: true };
@@ -573,6 +577,7 @@ export async function updateAdmission(admissionId: string, formData: FormData) {
     });
 
     invalidateDashboardTags("summary", "queue");
+    updateClinicalTags(getAdmissionMutationTags(admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     revalidatePath("/");
     return { success: true };

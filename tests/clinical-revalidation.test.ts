@@ -6,7 +6,9 @@ import {
   getAdmissionMutationTags,
   getBathMutationTags,
   getFeedingMutationTags,
+  getIsolationMutationTags,
   getMedicationMutationTags,
+  getVitalsMutationTags,
 } from "../src/lib/clinical-revalidation";
 
 function getFunctionSource(source: string, name: string) {
@@ -31,21 +33,46 @@ const bathsSource = readFileSync(
   new URL("../src/actions/baths.ts", import.meta.url),
   "utf8"
 );
+const vitalsSource = readFileSync(
+  new URL("../src/actions/vitals.ts", import.meta.url),
+  "utf8"
+);
+const isolationSource = readFileSync(
+  new URL("../src/actions/isolation.ts", import.meta.url),
+  "utf8"
+);
 const admissionsSource = readFileSync(
   new URL("../src/actions/admissions.ts", import.meta.url),
   "utf8"
 );
 
+const notificationTags = [
+  "notifications:admin",
+  "notifications:attendant",
+  "notifications:doctor",
+  "notifications:management",
+  "notifications:paravet",
+];
+
 test("medication mutations invalidate the schedule meds cache", () => {
-  assert.deepEqual(getMedicationMutationTags("adm-1"), ["schedule:meds"]);
+  assert.deepEqual(getMedicationMutationTags("adm-1"), [
+    "schedule:meds",
+    ...notificationTags,
+  ]);
 });
 
 test("feeding mutations invalidate the schedule feedings cache", () => {
-  assert.deepEqual(getFeedingMutationTags("adm-1"), ["schedule:feedings"]);
+  assert.deepEqual(getFeedingMutationTags("adm-1"), [
+    "schedule:feedings",
+    ...notificationTags,
+  ]);
 });
 
 test("bath mutations invalidate the schedule baths cache", () => {
-  assert.deepEqual(getBathMutationTags("adm-1"), ["schedule:baths"]);
+  assert.deepEqual(getBathMutationTags("adm-1"), [
+    "schedule:baths",
+    ...notificationTags,
+  ]);
 });
 
 test("admission mutations invalidate all schedule caches", () => {
@@ -53,7 +80,16 @@ test("admission mutations invalidate all schedule caches", () => {
     "schedule:meds",
     "schedule:feedings",
     "schedule:baths",
+    ...notificationTags,
   ]);
+});
+
+test("vitals mutations invalidate all notification caches", () => {
+  assert.deepEqual(getVitalsMutationTags("adm-1"), notificationTags);
+});
+
+test("isolation mutations invalidate all notification caches", () => {
+  assert.deepEqual(getIsolationMutationTags("adm-1"), notificationTags);
 });
 
 test("schedule-visible medication actions use the medication invalidation contract", () => {
@@ -98,9 +134,14 @@ test("bath actions use the bath invalidation contract", () => {
 
 test("schedule-visible admission actions use the admission invalidation contract", () => {
   for (const name of [
+    "registerPatient",
+    "cancelRegistration",
+    "editRegisteredPatient",
     "clinicalSetup",
+    "updateCondition",
     "transferWard",
     "updatePatient",
+    "updateAdmission",
     "archivePatient",
     "restorePatient",
     "dischargePatient",
@@ -108,6 +149,29 @@ test("schedule-visible admission actions use the admission invalidation contract
     assert.match(
       getFunctionSource(admissionsSource, name),
       /updateClinicalTags\(\s*getAdmissionMutationTags\([\s\S]*?\)\s*\);/
+    );
+  }
+});
+
+test("vitals actions use the vitals invalidation contract", () => {
+  for (const name of ["recordVitals", "updateVitals", "deleteVitals"]) {
+    assert.match(
+      getFunctionSource(vitalsSource, name),
+      /updateClinicalTags\(\s*getVitalsMutationTags\([\s\S]*?\)\s*\);/
+    );
+  }
+});
+
+test("isolation actions use the isolation invalidation contract", () => {
+  for (const name of [
+    "logDisinfection",
+    "updateIsolationProtocol",
+    "updateIsolationSetup",
+    "deleteDisinfectionLog",
+  ]) {
+    assert.match(
+      getFunctionSource(isolationSource, name),
+      /updateClinicalTags\(\s*getIsolationMutationTags\([\s\S]*?\)\s*\);/
     );
   }
 });

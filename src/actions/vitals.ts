@@ -5,6 +5,10 @@ import { db } from "@/lib/db";
 import { requireDoctor, requireWriteAccess } from "@/lib/auth";
 import { handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
+import {
+  getVitalsMutationTags,
+  updateClinicalTags,
+} from "@/lib/clinical-revalidation";
 import { invalidateDashboardTags } from "@/lib/dashboard-revalidation";
 
 export async function recordVitals(admissionId: string, formData: FormData) {
@@ -48,6 +52,7 @@ export async function recordVitals(admissionId: string, formData: FormData) {
 
     const vitalRecord = await db.vitalRecord.create({ data });
     invalidateDashboardTags("queue");
+    updateClinicalTags(getVitalsMutationTags(admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     return { success: true, id: vitalRecord.id };
   } catch (error) {
@@ -105,6 +110,7 @@ export async function updateVitals(vitalId: string, formData: FormData) {
 
     await db.vitalRecord.update({ where: { id: vitalId }, data });
     invalidateDashboardTags("queue");
+    updateClinicalTags(getVitalsMutationTags(vital.admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
   } catch (error) {
@@ -140,6 +146,7 @@ export async function deleteVitals(vitalId: string) {
 
     await db.vitalRecord.delete({ where: { id: vitalId } });
     invalidateDashboardTags("queue");
+    updateClinicalTags(getVitalsMutationTags(vital.admissionId));
     revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
   } catch (error) {

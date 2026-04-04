@@ -47,9 +47,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 60000); // Poll every 60 seconds
-    return () => clearInterval(interval);
+    const initialRefresh = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    }, 30000);
+
+    return () => {
+      window.clearTimeout(initialRefresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(interval);
+    };
   }, [refresh]);
 
   return (

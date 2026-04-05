@@ -32,6 +32,7 @@ export interface DashboardSummaryAdmissionRow {
 
 export interface DashboardQueueTreatmentPlan {
   drugName: string;
+  scheduledTimes: string[];
   administrations: Array<{
     scheduledTime: string;
     wasAdministered: boolean;
@@ -155,17 +156,26 @@ export function selectNextMedication(
 ): DashboardQueueAdmission["nextMedication"] {
   return (
     treatmentPlans
-      .flatMap((plan) =>
-        plan.administrations
-          .filter(
-            (administration) =>
-              !administration.wasAdministered && !administration.wasSkipped
-          )
-          .map((administration) => ({
+      .flatMap((plan) => {
+        const scheduledTimes =
+          plan.scheduledTimes ?? plan.administrations.map((entry) => entry.scheduledTime);
+
+        return scheduledTimes
+          .filter((scheduledTime) => {
+            const administration = plan.administrations.find(
+              (entry) => entry.scheduledTime === scheduledTime
+            );
+
+            return (
+              !administration ||
+              (!administration.wasAdministered && !administration.wasSkipped)
+            );
+          })
+          .map((scheduledTime) => ({
             drugName: plan.drugName,
-            scheduledTime: administration.scheduledTime,
-          }))
-      )
+            scheduledTime,
+          }));
+      })
       .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime))[0] ?? null
   );
 }

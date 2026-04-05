@@ -86,6 +86,7 @@ test("selectNextMedication returns the next incomplete administration", () => {
   const nextMedication = selectNextMedication([
     {
       drugName: "Amoxicillin",
+      scheduledTimes: ["08:00", "12:00"],
       administrations: [
         { scheduledTime: "08:00", wasAdministered: true, wasSkipped: false },
         { scheduledTime: "12:00", wasAdministered: false, wasSkipped: false },
@@ -93,15 +94,38 @@ test("selectNextMedication returns the next incomplete administration", () => {
     },
     {
       drugName: "Meloxicam",
+      scheduledTimes: ["09:00"],
       administrations: [
         { scheduledTime: "09:00", wasAdministered: false, wasSkipped: false },
       ],
     },
-  ]);
+  ] as any);
 
   assert.deepEqual(nextMedication, {
     drugName: "Meloxicam",
     scheduledTime: "09:00",
+  });
+});
+
+test("selectNextMedication falls back to the earliest scheduled slot without an administration row", () => {
+  const nextMedication = selectNextMedication([
+    {
+      drugName: "Ceftriaxone",
+      scheduledTimes: ["06:00", "14:00"],
+      administrations: [],
+    },
+    {
+      drugName: "Meloxicam",
+      scheduledTimes: ["09:00"],
+      administrations: [
+        { scheduledTime: "09:00", wasAdministered: true, wasSkipped: false },
+      ],
+    },
+  ] as any);
+
+  assert.deepEqual(nextMedication, {
+    drugName: "Ceftriaxone",
+    scheduledTime: "06:00",
   });
 });
 
@@ -125,6 +149,7 @@ test("toDashboardQueueAdmission preserves queue read-model fallbacks", () => {
     treatmentPlans: [
       {
         drugName: "Meloxicam",
+        scheduledTimes: ["09:00", "18:00"],
         administrations: [
           { scheduledTime: "09:00", wasAdministered: true, wasSkipped: false },
           { scheduledTime: "18:00", wasAdministered: false, wasSkipped: false },

@@ -30,6 +30,22 @@ function patientTags(
   return tabs.map((tab) => patientTabTag(admissionId, tab));
 }
 
+function allPatientTags(admissionId: string) {
+  return [
+    patientShellTag(admissionId),
+    ...patientTags(admissionId, [
+      "vitals",
+      "meds",
+      "food",
+      "notes",
+      "labs",
+      "bath",
+      "isolation",
+      "logs",
+    ]),
+  ];
+}
+
 // Schedule caches are global today; admission ids are reserved for future scoping.
 export function getMedicationMutationTags(_admissionId: string): string[] {
   return [
@@ -56,34 +72,32 @@ export function getBathMutationTags(_admissionId: string): string[] {
 }
 
 export function getAdmissionMutationTags(_admissionId?: string): string[] {
+  if (!_admissionId) {
+    return [
+      scheduleTag("meds"),
+      scheduleTag("feedings"),
+      scheduleTag("baths"),
+      ...NOTIFICATION_ROLE_TAGS,
+    ];
+  }
+
+  return getAdmissionMutationTagsForAdmissions([_admissionId]);
+}
+
+export function getAdmissionMutationTagsForAdmissions(
+  admissionIds: readonly string[]
+): string[] {
   const tags = [
     scheduleTag("meds"),
     scheduleTag("feedings"),
     scheduleTag("baths"),
-    ...NOTIFICATION_ROLE_TAGS,
   ];
 
-  if (!_admissionId) {
-    return tags;
+  for (const admissionId of new Set(admissionIds.filter(Boolean))) {
+    tags.push(...allPatientTags(admissionId));
   }
 
-  return [
-    scheduleTag("meds"),
-    scheduleTag("feedings"),
-    scheduleTag("baths"),
-    patientShellTag(_admissionId),
-    ...patientTags(_admissionId, [
-      "vitals",
-      "meds",
-      "food",
-      "notes",
-      "labs",
-      "bath",
-      "isolation",
-      "logs",
-    ]),
-    ...NOTIFICATION_ROLE_TAGS,
-  ];
+  return [...tags, ...NOTIFICATION_ROLE_TAGS];
 }
 
 export function getVitalsMutationTags(_admissionId: string): string[] {

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AutoPushEnroll } from "@/components/management/auto-push-enroll";
+import { LiveDashboardRefresh } from "@/components/management/live-dashboard-refresh";
 
 async function ManagementLayoutContent({
   children,
@@ -24,6 +25,7 @@ async function ManagementLayoutContent({
   return (
     <div className="min-h-screen bg-clinic-bg">
       <AutoPushEnroll />
+      <LiveDashboardRefresh />
       <header className="sticky top-0 z-40 border-b border-border bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link href="/management" className="text-sm font-semibold text-clinic-teal sm:text-base">

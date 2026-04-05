@@ -18,6 +18,7 @@ import { ActionUserError, handleActionError } from "@/lib/action-utils";
 import { markDeletedInDrive } from "@/lib/google-auth";
 import {
   getAdmissionMutationTags,
+  getAdmissionMutationTagsForAdmissions,
   updateClinicalTags,
 } from "@/lib/clinical-revalidation";
 import {
@@ -536,17 +537,17 @@ export async function updatePatient(patientId: string, formData: FormData) {
       },
     });
 
-    // Find admission for revalidation
-    const admission = await db.admission.findFirst({
+    const admissions = await db.admission.findMany({
       where: { patientId, deletedAt: null },
       select: { id: true },
     });
+    const admissionIds = admissions.map((admission) => admission.id);
 
     invalidateDashboardTags("queue", "setup");
-    updateClinicalTags(getAdmissionMutationTags(admission?.id));
+    updateClinicalTags(getAdmissionMutationTagsForAdmissions(admissionIds));
     revalidatePath("/");
     revalidatePath("/schedule");
-    if (admission) revalidatePath("/patients/[admissionId]", "page");
+    if (admissionIds.length > 0) revalidatePath("/patients/[admissionId]", "page");
     return { success: true };
   } catch (error) {
     return handleActionError(error);
@@ -596,6 +597,13 @@ export async function archivePatient(admissionId: string) {
     });
     if (!admission || admission.deletedAt) return { error: "Admission not found" };
 
+    const admissionIds = (
+      await db.admission.findMany({
+        where: { patientId: admission.patientId, deletedAt: null },
+        select: { id: true },
+      })
+    ).map((entry) => entry.id);
+
     // Soft-delete admission and patient + deactivate plans atomically
     await db.$transaction(async (tx: any) => {
       const now = new Date();
@@ -632,7 +640,7 @@ export async function archivePatient(admissionId: string) {
     });
 
     invalidateDashboardTags("summary", "queue", "setup");
-    updateClinicalTags(getAdmissionMutationTags(admissionId));
+    updateClinicalTags(getAdmissionMutationTagsForAdmissions(admissionIds));
     revalidatePath("/");
     revalidatePath("/archive");
     revalidatePath("/schedule");
@@ -645,6 +653,7 @@ export async function archivePatient(admissionId: string) {
 export async function restorePatient(patientId: string) {
   try {
     const session = await requireDoctor();
+    let restoredAdmissionIds: string[] = [];
 
     await db.$transaction(async (tx: any) => {
       await tx.patient.update({
@@ -661,6 +670,9 @@ export async function restorePatient(patientId: string) {
         where: { patientId, deletedAt: null },
         select: { id: true },
       });
+      restoredAdmissionIds = admissions.map(
+        (admission: { id: string }) => admission.id
+      );
       for (const adm of admissions) {
         await tx.clinicalNote.create({
           data: {
@@ -675,7 +687,9 @@ export async function restorePatient(patientId: string) {
     });
 
     invalidateDashboardTags("summary", "queue", "setup");
-    updateClinicalTags(getAdmissionMutationTags());
+    updateClinicalTags(
+      getAdmissionMutationTagsForAdmissions(restoredAdmissionIds)
+    );
     revalidatePath("/");
     revalidatePath("/archive");
     revalidatePath("/schedule");

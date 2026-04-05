@@ -162,6 +162,7 @@ export async function getDashboardQueue(today: Date) {
         where: { isActive: true, deletedAt: null },
         select: {
           drugName: true,
+          scheduledTimes: true,
           administrations: {
             where: { scheduledDate: today },
             orderBy: { scheduledTime: "asc" },

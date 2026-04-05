@@ -13,6 +13,7 @@ import {
   getVitalsMutationTags,
   getFluidMutationTags,
 } from "../src/lib/clinical-revalidation";
+import * as clinicalRevalidation from "../src/lib/clinical-revalidation";
 
 function getFunctionSource(source: string, name: string) {
   const signature = `export async function ${name}`;
@@ -69,6 +70,12 @@ const notificationTags = [
   "notifications:paravet",
 ];
 
+const getAdmissionMutationTagsForAdmissions = (
+  clinicalRevalidation as Record<string, unknown>
+).getAdmissionMutationTagsForAdmissions as
+  | undefined
+  | ((admissionIds: readonly string[]) => string[]);
+
 test("medication mutations invalidate the schedule meds cache", () => {
   assert.deepEqual(getMedicationMutationTags("adm-1"), [
     "schedule:meds",
@@ -112,6 +119,34 @@ test("admission mutations invalidate all schedule caches", () => {
     "patient:adm-1:logs",
   ]);
   assert.deepEqual(getAdmissionMutationTags("adm-1").slice(12), [
+    ...notificationTags,
+  ]);
+});
+
+test("multi-admission invalidation covers every affected patient page cache", () => {
+  assert.equal(typeof getAdmissionMutationTagsForAdmissions, "function");
+  assert.deepEqual(getAdmissionMutationTagsForAdmissions?.(["adm-1", "adm-2"]), [
+    "schedule:meds",
+    "schedule:feedings",
+    "schedule:baths",
+    "patient:adm-1:shell",
+    "patient:adm-1:vitals",
+    "patient:adm-1:meds",
+    "patient:adm-1:food",
+    "patient:adm-1:notes",
+    "patient:adm-1:labs",
+    "patient:adm-1:bath",
+    "patient:adm-1:isolation",
+    "patient:adm-1:logs",
+    "patient:adm-2:shell",
+    "patient:adm-2:vitals",
+    "patient:adm-2:meds",
+    "patient:adm-2:food",
+    "patient:adm-2:notes",
+    "patient:adm-2:labs",
+    "patient:adm-2:bath",
+    "patient:adm-2:isolation",
+    "patient:adm-2:logs",
     ...notificationTags,
   ]);
 });
@@ -202,15 +237,21 @@ test("schedule-visible admission actions use the admission invalidation contract
     "clinicalSetup",
     "updateCondition",
     "transferWard",
-    "updatePatient",
     "updateAdmission",
-    "archivePatient",
-    "restorePatient",
     "dischargePatient",
   ]) {
     assert.match(
       getFunctionSource(admissionsSource, name),
       /updateClinicalTags\(\s*getAdmissionMutationTags\([\s\S]*?\)\s*\);/
+    );
+  }
+});
+
+test("patient-wide admission actions invalidate every admission cache for that patient", () => {
+  for (const name of ["updatePatient", "archivePatient", "restorePatient"]) {
+    assert.match(
+      getFunctionSource(admissionsSource, name),
+      /getAdmissionMutationTagsForAdmissions\([\s\S]*?\)/
     );
   }
 });

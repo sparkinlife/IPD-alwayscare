@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/features"];
 const MANAGEMENT_PATH_PREFIX = "/management";
 
 export default async function proxy(request: NextRequest) {

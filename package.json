@@ -11,7 +11,8 @@
     "repair:feeding-log-integrity": "tsx scripts/repair-feeding-log-integrity.ts",
     "setup:real-system-browser": "playwright install chromium",
     "test:real-system": "node --env-file=.env --env-file=.env.local --import tsx --test tests/real-system-validation.test.ts",
-    "test:scenarios": "node --env-file=.env --env-file=.env.local --import tsx --test tests/phases/09-scenarios-and-perf.test.ts"
+    "test:scenarios": "node --env-file=.env --env-file=.env.local --import tsx --test tests/phases/09-scenarios-and-perf.test.ts",
+    "test:drill": "node --env-file=.env --env-file=.env.local --import tsx --test tests/phases/10-clinic-day-drill.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

@@ -353,16 +353,11 @@ export async function getPatientPhotosData(patientId: string) {
 }
 
 export async function getPatientLogsData(
-  admissionId: string,
-  today: Date,
-  sevenDaysAgo: Date
+  admissionId: string
 ): Promise<import("@/lib/logs-read-model").LogsTimelineEntry[]> {
   "use cache";
   cacheLife(CLINICAL_LIVE_PROFILE);
   cacheTag(patientTabTag(admissionId, "logs"));
 
-  return getLogsTimelineEntries(admissionId, {
-    medicationDate: today,
-    feedingFromDate: sevenDaysAgo,
-  });
+  return getLogsTimelineEntries(admissionId);
 }

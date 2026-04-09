@@ -84,7 +84,7 @@ export default async function PatientDetailPage(props: {
       ? getPatientIsolationData(admissionId)
       : Promise.resolve({ isolationProtocol: null, labResults: [] }),
     loadPlan.logs
-      ? getPatientLogsData(admissionId, today, sevenDaysAgo)
+      ? getPatientLogsData(admissionId)
       : Promise.resolve([]),
     loadPlan.photos
       ? getPatientPhotosData(admission.patientId)

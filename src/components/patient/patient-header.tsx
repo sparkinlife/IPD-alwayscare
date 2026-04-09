@@ -171,7 +171,7 @@ function EditPatientSheet({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ep-rescue">Location Name</Label>
+            <Label htmlFor="ep-rescue">Rescue Location</Label>
             <Input
               id="ep-rescue"
               name="rescueLocation"
@@ -197,7 +197,7 @@ function EditPatientSheet({
               <SelectTrigger className="w-full h-12">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-[16rem]" align="start">
                 {Object.entries(HANDLING_NOTE_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
@@ -539,7 +539,7 @@ export function PatientHeader({ admission, isDoctor, profilePhotoFileId }: Patie
                 <span>Ambulance: {patient.ambulancePersonName}</span>
               )}
               {patient.rescueLocation && (
-                <span>Location: {patient.rescueLocation}</span>
+                <span>Rescue location: {patient.rescueLocation}</span>
               )}
             </div>
           )}

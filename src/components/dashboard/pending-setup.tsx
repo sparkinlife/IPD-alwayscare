@@ -227,7 +227,7 @@ function EditRegisteredSheet({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-rescueLocation">Location Name</Label>
+            <Label htmlFor="edit-rescueLocation">Rescue Location</Label>
             <Input
               id="edit-rescueLocation"
               name="rescueLocation"
@@ -245,6 +245,15 @@ function EditRegisteredSheet({
           </div>
 
           <div className="space-y-1.5">
+            <Label htmlFor="edit-rescuerInfo">Rescuer Info</Label>
+            <Input
+              id="edit-rescuerInfo"
+              name="rescuerInfo"
+              defaultValue={admission.patient.rescuerInfo ?? ""}
+            />
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Handling Note</Label>
             <Select
               value={handlingNote}
@@ -253,7 +262,7 @@ function EditRegisteredSheet({
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-[16rem]" align="start">
                 <SelectItem value="STANDARD">Standard</SelectItem>
                 <SelectItem value="GENTLE">Gentle</SelectItem>
                 <SelectItem value="ADVANCED_HANDLER_ONLY">
@@ -271,20 +280,6 @@ function EditRegisteredSheet({
             </div>
             <Switch checked={isStray} onCheckedChange={setIsStray} />
           </div>
-
-          {/* Stray-specific fields */}
-          {isStray && (
-            <div className="space-y-3 rounded-lg bg-muted/50 p-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-rescuerInfo">Rescuer Info</Label>
-                <Input
-                  id="edit-rescuerInfo"
-                  name="rescuerInfo"
-                  defaultValue={admission.patient.rescuerInfo ?? ""}
-                />
-              </div>
-            </div>
-          )}
 
           <Button type="submit" disabled={loading} className="mt-2">
             {loading ? "Saving..." : "Save Changes"}

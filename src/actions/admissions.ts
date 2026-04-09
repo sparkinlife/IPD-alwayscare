@@ -225,7 +225,7 @@ export async function editRegisteredPatient(admissionId: string, formData: FormD
           locationGpsCoordinates,
           ambulancePersonName,
           handlingNote,
-          rescuerInfo: isStray ? rescuerInfo : null,
+          rescuerInfo,
         },
       });
     });

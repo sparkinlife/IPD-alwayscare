@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Camera, X, Film } from "lucide-react";
@@ -8,7 +8,7 @@ import { registerPatient } from "@/actions/admissions";
 import { uploadFileChunked } from "@/lib/chunked-upload";
 import { savePatientMedia } from "@/actions/patient-media";
 import { buildDriveFolderPath, buildDriveFileName } from "@/lib/drive-path";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface RegistrationFormProps {
   isDoctor?: boolean;
@@ -27,107 +28,14 @@ interface RegistrationFormProps {
 
 export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(registerPatient, null);
   const [isStray, setIsStray] = useState(false);
   const [species, setSpecies] = useState("DOG");
   const [sex, setSex] = useState("UNKNOWN");
   const [handlingNote, setHandlingNote] = useState("STANDARD");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [locationPhoto, setLocationPhoto] = useState<File | null>(null);
+  const [isPending, setIsPending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const locationPhotoInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!state) return;
-    if ("error" in state && state.error) {
-      toast.error(state.error);
-      return;
-    }
-    if (!("success" in state && state.success)) return;
-
-    const patientId = "patientId" in state ? (state.patientId as string) : null;
-    const admissionId = "admissionId" in state ? (state.admissionId as string) : null;
-    const patientName = (document.querySelector<HTMLInputElement>("#name")?.value) || "Patient";
-
-    // Upload files if any were selected, then redirect
-    if ((selectedFiles.length > 0 || locationPhoto) && patientId) {
-      let cancelled = false;
-      setIsUploading(true);
-
-      (async () => {
-        try {
-          const uploadedFiles: Array<{ fileUrl: string; fileId: string; fileName: string; mimeType: string }> = [];
-
-          for (const file of selectedFiles) {
-            if (cancelled) return;
-            const folderPath = buildDriveFolderPath(patientName, "PROFILE");
-            const fileName = buildDriveFileName("profile", file.name);
-            const result = await uploadFileChunked(file, folderPath, fileName);
-            uploadedFiles.push({
-              fileUrl: result.shareableLink,
-              fileId: result.fileId,
-              fileName: result.fileName,
-              mimeType: file.type,
-            });
-          }
-
-          if (!cancelled && uploadedFiles.length > 0) {
-            await savePatientMedia(patientId, uploadedFiles, true);
-          }
-
-          const locationUploads: Array<{
-            fileUrl: string;
-            fileId: string;
-            fileName: string;
-            mimeType: string;
-          }> = [];
-
-          if (locationPhoto) {
-            const result = await uploadFileChunked(
-              locationPhoto,
-              buildDriveFolderPath(patientName, "LOCATION"),
-              buildDriveFileName("location", locationPhoto.name)
-            );
-
-            locationUploads.push({
-              fileUrl: result.shareableLink,
-              fileId: result.fileId,
-              fileName: result.fileName,
-              mimeType: locationPhoto.type,
-            });
-          }
-
-          if (!cancelled && locationUploads.length > 0) {
-            await savePatientMedia(patientId, locationUploads, false);
-          }
-
-          toast.success("Patient registered");
-        } catch {
-          toast.warning("Patient registered, but photo upload failed. You can add photos later.");
-        } finally {
-          if (!cancelled) {
-            setIsUploading(false);
-            if (isDoctor && admissionId) {
-              router.push(`/patients/${admissionId}/setup`);
-            } else {
-              router.push("/");
-            }
-          }
-        }
-      })();
-
-      return () => { cancelled = true; };
-    }
-
-    // No files to upload — redirect immediately
-    toast.success("Patient registered");
-    if (isDoctor && admissionId) {
-      router.push(`/patients/${admissionId}/setup`);
-    } else {
-      router.push("/");
-    }
-  }, [state, router, isDoctor, selectedFiles, locationPhoto]);
 
   function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -147,13 +55,124 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
     e.target.value = "";
   }
 
+  async function uploadSelectedMedia(patientId: string, patientName: string) {
+    const uploadedFiles: Array<{
+      fileUrl: string;
+      fileId: string;
+      fileName: string;
+      mimeType: string;
+    }> = [];
+
+    for (const file of selectedFiles) {
+      const folderPath = buildDriveFolderPath(patientName, "PROFILE");
+      const fileName = buildDriveFileName("profile", file.name);
+      const result = await uploadFileChunked(file, folderPath, fileName);
+      uploadedFiles.push({
+        fileUrl: result.shareableLink,
+        fileId: result.fileId,
+        fileName: result.fileName,
+        mimeType: file.type,
+      });
+    }
+
+    if (uploadedFiles.length > 0) {
+      const saveResult = await savePatientMedia(patientId, uploadedFiles, true);
+      if (saveResult && "error" in saveResult && saveResult.error) {
+        throw new Error(saveResult.error);
+      }
+    }
+
+    if (!locationPhoto) return;
+
+    const result = await uploadFileChunked(
+      locationPhoto,
+      buildDriveFolderPath(patientName, "LOCATION"),
+      buildDriveFileName("location", locationPhoto.name)
+    );
+
+    const locationUploads = [
+      {
+        fileUrl: result.shareableLink,
+        fileId: result.fileId,
+        fileName: result.fileName,
+        mimeType: locationPhoto.type,
+      },
+    ];
+
+    const saveResult = await savePatientMedia(patientId, locationUploads, false);
+    if (saveResult && "error" in saveResult && saveResult.error) {
+      throw new Error(saveResult.error);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsPending(true);
+
+    const formData = new FormData(e.currentTarget);
+    formData.set("species", species);
+    formData.set("sex", sex);
+    formData.set("isStray", String(isStray));
+    formData.set("handlingNote", handlingNote);
+
+    const patientName =
+      ((formData.get("name") as string | null)?.trim() || "Patient");
+
+    try {
+      const result = await registerPatient(null, formData);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+        setIsPending(false);
+        return;
+      }
+
+      if (!result || !("success" in result && result.success) || !("patientId" in result)) {
+        toast.error("Failed to register patient. Please try again.");
+        setIsPending(false);
+        return;
+      }
+
+      const patientId = result.patientId as string;
+      const admissionId =
+        "admissionId" in result ? (result.admissionId as string) : null;
+
+      setIsPending(false);
+
+      if (selectedFiles.length > 0 || locationPhoto) {
+        setIsUploading(true);
+        try {
+          await uploadSelectedMedia(patientId, patientName);
+          toast.success("Patient registered");
+        } catch {
+          toast.warning(
+            "Patient registered, but photo upload failed. You can add photos later."
+          );
+        } finally {
+          setIsUploading(false);
+        }
+      } else {
+        toast.success("Patient registered");
+      }
+
+      if (isDoctor && admissionId) {
+        router.push(`/patients/${admissionId}/setup`);
+      } else {
+        router.push("/");
+      }
+    } catch {
+      setIsPending(false);
+      setIsUploading(false);
+      toast.error("Failed to register patient. Please try again.");
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Patient Details</CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Hidden fields for controlled select/switch values */}
           <input type="hidden" name="species" value={species} />
           <input type="hidden" name="sex" value={sex} />
@@ -254,6 +273,58 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
             />
           </div>
 
+          {/* Patient media upload */}
+          <div className="space-y-2">
+            <Label htmlFor="patientMedia">Patient Photo and Videos</Label>
+            <input
+              id="patientMedia"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={handleFilesSelected}
+            />
+            <label
+              htmlFor="patientMedia"
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className: "h-12 w-full cursor-pointer",
+                }),
+                (isPending || isUploading) && "pointer-events-none opacity-50"
+              )}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Add Patient Photo and Videos
+            </label>
+            {selectedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {selectedFiles.map((file, idx) => (
+                  <div key={`${file.name}-${idx}`} className="relative">
+                    {file.type.startsWith("image/") ? (
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="h-16 w-16 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted">
+                        <Film className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="ambulancePersonName">Ambulance Person Name</Label>
             <Input
@@ -265,7 +336,7 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="rescueLocation">Location Name</Label>
+            <Label htmlFor="rescueLocation">Rescue Location</Label>
             <Input
               id="rescueLocation"
               name="rescueLocation"
@@ -285,6 +356,16 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
           </div>
 
           <div className="space-y-1.5">
+            <Label htmlFor="rescuerInfo">Rescuer Info</Label>
+            <Input
+              id="rescuerInfo"
+              name="rescuerInfo"
+              placeholder="e.g., Priya Sharma, 9876543210"
+              className="h-12"
+            />
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Handling Note</Label>
             <Select
               value={handlingNote}
@@ -293,7 +374,7 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
               <SelectTrigger className="h-12">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-[16rem]" align="start">
                 <SelectItem value="STANDARD">Standard</SelectItem>
                 <SelectItem value="GENTLE">Gentle</SelectItem>
                 <SelectItem value="ADVANCED_HANDLER_ONLY">
@@ -303,79 +384,44 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
             </Select>
           </div>
 
-          {/* Photos/Videos upload */}
           <div className="space-y-2">
-            <Label>Photos / Videos</Label>
+            <Label htmlFor="locationPhoto">Location Photo / Video</Label>
             <input
-              ref={fileInputRef}
+              id="locationPhoto"
               type="file"
               accept="image/*,video/*"
-              multiple
-              className="hidden"
-              onChange={handleFilesSelected}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-12"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="mr-2 h-4 w-4" />
-              Add Photos / Videos
-            </Button>
-            {selectedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {selectedFiles.map((file, idx) => (
-                  <div key={`${file.name}-${idx}`} className="relative">
-                    {file.type.startsWith("image/") ? (
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt={file.name}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                        <Film className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeFile(idx)}
-                      className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground w-5 h-5 flex items-center justify-center"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Location Photo</Label>
-            <input
-              ref={locationPhotoInputRef}
-              type="file"
-              accept="image/*"
               className="hidden"
               onChange={handleLocationPhotoSelected}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-12"
-              onClick={() => locationPhotoInputRef.current?.click()}
+            <label
+              htmlFor="locationPhoto"
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className: "h-12 w-full cursor-pointer",
+                }),
+                (isPending || isUploading) && "pointer-events-none opacity-50"
+              )}
             >
               <Camera className="mr-2 h-4 w-4" />
-              Add Location Photo
-            </Button>
+              Add Location Photo / Video
+            </label>
             {locationPhoto && (
               <div className="relative inline-block">
-                <img
-                  src={URL.createObjectURL(locationPhoto)}
-                  alt={locationPhoto.name}
-                  className="h-20 w-20 rounded-lg object-cover"
-                />
+                {locationPhoto.type.startsWith("image/") ? (
+                  <img
+                    src={URL.createObjectURL(locationPhoto)}
+                    alt={locationPhoto.name}
+                    className="h-20 w-20 rounded-lg object-cover"
+                  />
+                ) : (
+                  <video
+                    src={URL.createObjectURL(locationPhoto)}
+                    className="h-20 w-20 rounded-lg object-cover"
+                    controls
+                    muted
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => setLocationPhoto(null)}
@@ -400,31 +446,6 @@ export function RegistrationForm({ isDoctor = false }: RegistrationFormProps) {
               onCheckedChange={setIsStray}
             />
           </div>
-
-          {/* Stray-specific fields */}
-          {isStray && (
-            <div className="space-y-4 rounded-lg bg-muted/50 p-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="rescueLocation">Rescue Location</Label>
-                <Input
-                  id="rescueLocation"
-                  name="rescueLocation"
-                  placeholder="e.g., Near Andheri Station, Mumbai"
-                  className="h-12"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="rescuerInfo">Rescuer Info</Label>
-                <Input
-                  id="rescuerInfo"
-                  name="rescuerInfo"
-                  placeholder="e.g., Priya Sharma, 9876543210"
-                  className="h-12"
-                />
-              </div>
-            </div>
-          )}
 
           {/* Doctor note */}
           {isDoctor && (

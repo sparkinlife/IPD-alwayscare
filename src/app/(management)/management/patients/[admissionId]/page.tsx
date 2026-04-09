@@ -41,6 +41,7 @@ export default async function ManagementPatientPage({ params, searchParams }: Pr
   const tab = normalizeManagementPatientTab(query.tab);
   const loadPlan = getManagementPatientTabLoadPlan(tab);
   const today = getTodayUTCDate();
+  const shouldLoadProofs = loadPlan.history || loadPlan.media;
 
   const shell = await getManagementPatientPageShell(admissionId);
   if (!shell || shell.patient.deletedAt) notFound();
@@ -53,8 +54,17 @@ export default async function ManagementPatientPage({ params, searchParams }: Pr
     loadPlan.history ? getPatientLabsData(admissionId) : Promise.resolve([]),
     loadPlan.history ? getLogsTimelineEntries(admissionId) : Promise.resolve([]),
     loadPlan.media ? getPatientPhotosData(shell.patientId) : Promise.resolve([]),
-    loadPlan.media ? getManagementPatientMediaProofs(admissionId) : Promise.resolve([]),
+    shouldLoadProofs ? getManagementPatientMediaProofs(admissionId) : Promise.resolve([]),
   ]);
+  const proofAttachments = proofs.map((proof) => ({
+    fileId: proof.fileId,
+    fileName: proof.fileName,
+    category: proof.category,
+    uploadedBy: proof.uploadedBy.name,
+    createdAt: proof.createdAt,
+    isSkipped: proof.fileId === "SKIPPED",
+    skipReason: proof.skipReason,
+  }));
 
   // Build Today tab props
   let todayProps: TodayTabProps | null = null;
@@ -185,19 +195,18 @@ export default async function ManagementPatientPage({ params, searchParams }: Pr
         {tab === "today" && !todayProps && (
           <p className="text-sm text-muted-foreground py-8 text-center">No data available</p>
         )}
-        {tab === "history" && <HistoryTab notes={notes} labs={labs} logEntries={logEntries} />}
+        {tab === "history" && (
+          <HistoryTab
+            notes={notes}
+            labs={labs}
+            logEntries={logEntries}
+            proofAttachments={proofAttachments}
+          />
+        )}
         {tab === "media" && (
           <MediaGallery
             patientPhotos={patientPhotos}
-            proofAttachments={proofs.map((p) => ({
-              fileId: p.fileId,
-              fileName: p.fileName,
-              category: p.category,
-              uploadedBy: p.uploadedBy.name,
-              createdAt: p.createdAt,
-              isSkipped: p.fileId === "SKIPPED",
-              skipReason: p.skipReason,
-            }))}
+            proofAttachments={proofAttachments}
             patientName={shell.patient.name}
           />
         )}

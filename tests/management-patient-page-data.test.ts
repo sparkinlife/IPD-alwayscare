@@ -5,44 +5,30 @@ import {
   normalizeManagementPatientTab,
 } from "../src/lib/management-patient-page-data";
 
-test("overview tab requests only summary data", () => {
-  assert.deepEqual(getManagementPatientTabLoadPlan("overview"), {
-    overview: true,
-    meds: false,
-    food: false,
-    vitals: false,
-    notes: false,
-    labs: false,
-    bath: false,
-    isolation: false,
+test("today tab requests only summary data", () => {
+  assert.deepEqual(getManagementPatientTabLoadPlan("today"), {
+    today: true,
+    history: false,
     media: false,
-    logs: false,
   });
 });
 
 test("media tab only opts into media data", () => {
   assert.deepEqual(getManagementPatientTabLoadPlan("media"), {
-    overview: false,
-    meds: false,
-    food: false,
-    vitals: false,
-    notes: false,
-    labs: false,
-    bath: false,
-    isolation: false,
+    today: false,
+    history: false,
     media: true,
-    logs: false,
   });
 });
 
-test("logs tab keeps the broad history load", () => {
-  const plan = getManagementPatientTabLoadPlan("logs");
-  assert.equal(plan.logs, true);
+test("history tab keeps the broad history load", () => {
+  const plan = getManagementPatientTabLoadPlan("history");
+  assert.equal(plan.history, true);
   assert.equal(plan.media, false);
-  assert.equal(plan.overview, false);
+  assert.equal(plan.today, false);
 });
 
-test("unknown management tabs normalize to overview", () => {
-  assert.equal(normalizeManagementPatientTab(undefined), "overview");
-  assert.equal(normalizeManagementPatientTab("wat"), "overview");
+test("unknown management tabs normalize to today", () => {
+  assert.equal(normalizeManagementPatientTab(undefined), "today");
+  assert.equal(normalizeManagementPatientTab("wat"), "today");
 });

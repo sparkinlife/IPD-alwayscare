@@ -50,8 +50,8 @@ export function ProofCarousel({ items }: ProofCarouselProps) {
             onClick={() => setLightboxIndex(i)}
           >
             {item.isSkipped ? (
-              <div className="h-24 bg-muted flex items-center justify-center text-xs text-muted-foreground px-2 text-center">
-                Skipped
+              <div className="h-24 bg-muted flex items-center justify-center text-[10px] leading-tight text-muted-foreground px-2 text-center">
+                Photo skipped
               </div>
             ) : isVideo(item.fileName) ? (
               <div className="relative h-24">

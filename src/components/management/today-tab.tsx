@@ -109,7 +109,9 @@ export function TodayTab(props: TodayTabProps) {
               {slot.proof && (
                 <button onClick={() => openProof(slot.proof!)} className="shrink-0">
                   {slot.proof.isSkipped ? (
-                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center text-[9px] text-muted-foreground">Skip</div>
+                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center px-1 text-[8px] leading-tight text-center text-muted-foreground">
+                      Photo skipped
+                    </div>
                   ) : (
                     isVideo(slot.proof.fileName) ? (
                       <div className="relative w-12 h-12">

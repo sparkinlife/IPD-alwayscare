@@ -69,7 +69,7 @@ export function ProofLightbox({ items, initialIndex, onClose }: ProofLightboxPro
 
         {item.isSkipped ? (
           <div className="text-white text-center p-8">
-            <p className="text-lg">Proof Skipped</p>
+            <p className="text-lg">Photo skipped</p>
             <p className="text-white/70 mt-2">{item.skipReason ?? "No reason provided"}</p>
           </div>
         ) : isVideo(item.fileName ?? item.actionDetail) ? (

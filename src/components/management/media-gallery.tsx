@@ -108,10 +108,10 @@ export function MediaGallery({ patientPhotos, proofAttachments, patientName }: M
       {/* Skipped Proofs */}
       {skipped.length > 0 && (
         <div className="px-1">
-          <h4 className="text-xs font-medium text-muted-foreground mb-2">Skipped Proofs ({skipped.length})</h4>
+          <h4 className="text-xs font-medium text-muted-foreground mb-2">Skipped Photos ({skipped.length})</h4>
           {skipped.map((s, i) => (
             <div key={i} className="text-xs text-muted-foreground py-1 border-b last:border-0">
-              {s.category}: {s.skipReason ?? "No reason"}
+              {s.category} photo skipped{ s.skipReason ? ` · ${s.skipReason}` : "" }
             </div>
           ))}
         </div>

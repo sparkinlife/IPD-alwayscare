@@ -1,85 +1,171 @@
-import { formatInTimeZone } from "date-fns-tz";
 import type { LogsTimelineEntry } from "@/lib/logs-read-model";
+import { cn } from "@/lib/utils";
+import {
+  buildManagementHistoryDaySections,
+  type ManagementHistoryProofAttachment,
+} from "@/lib/management-history-data";
+import { driveMediaUrl } from "@/lib/drive-url";
+import { isVideo } from "@/lib/media-utils";
+import { Play } from "lucide-react";
 
 interface HistoryTabProps {
   notes: { id: string; category: string; content: string; recordedAt: Date; recordedBy: { name: string; role: string } }[];
   labs: { id: string; testName: string; testType: string; result: string; isAbnormal: boolean; resultDate: Date | null; notes: string | null }[];
   logEntries: LogsTimelineEntry[];
+  proofAttachments: ManagementHistoryProofAttachment[];
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  OBSERVATION: "Observation",
-  BEHAVIOR: "Behavior",
-  WOUND_CARE: "Wound Care",
-  ELIMINATION: "Elimination",
-  PROCEDURE: "Procedure",
-  DOCTOR_ROUND: "Doctor Round",
-  SHIFT_HANDOVER: "Shift Handover",
-  OTHER: "Other",
+const TONE_STYLES: Record<string, string> = {
+  default: "bg-slate-100 text-slate-700",
+  success: "bg-emerald-100 text-emerald-700",
+  warning: "bg-amber-100 text-amber-700",
+  note: "bg-violet-100 text-violet-700",
 };
 
-export function HistoryTab({ notes, labs, logEntries }: HistoryTabProps) {
+const DAY_BADGE_STYLES: Record<string, string> = {
+  Today: "bg-foreground text-background",
+  Yesterday: "bg-amber-100 text-amber-800",
+};
+
+export function HistoryTab({ notes, labs, logEntries, proofAttachments }: HistoryTabProps) {
+  const sections = buildManagementHistoryDaySections({ labs, logEntries, proofAttachments });
+  const totalItems = sections.reduce((count, section) => count + section.items.length, 0);
+
   return (
     <div className="space-y-6 pb-8">
-      {/* Clinical Notes */}
-      <section>
-        <h3 className="text-sm font-semibold px-1 mb-2">Clinical Notes ({notes.length})</h3>
-        <div className="space-y-2">
-          {notes.map((note) => (
-            <div key={note.id} className="p-3 rounded-lg border bg-card text-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-medium">
-                  {CATEGORY_LABELS[note.category] ?? note.category}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {note.recordedBy.name} · {formatInTimeZone(new Date(note.recordedAt), "Asia/Kolkata", "dd/MM HH:mm")}
-                </span>
-              </div>
-              <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-            </div>
-          ))}
-          {notes.length === 0 && <p className="text-xs text-muted-foreground px-1">No clinical notes</p>}
+      <section className="space-y-3">
+        <div className="border-b border-border/70 pb-3">
+          <h3 className="text-sm font-semibold text-foreground">Patient history</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Full clinical trail grouped by day, including notes, care actions, lab updates, and proof media.
+          </p>
         </div>
-      </section>
 
-      {/* Lab Results */}
-      {labs.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold px-1 mb-2">Lab Results ({labs.length})</h3>
-          <div className="space-y-2">
-            {labs.map((lab) => (
-              <div key={lab.id} className="p-3 rounded-lg border bg-card text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{lab.testName}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${lab.isAbnormal ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                    {lab.isAbnormal ? "ABNORMAL" : "NORMAL"}
-                  </span>
-                </div>
-                <p className="text-xs mt-1">{lab.result}</p>
-                {lab.notes && <p className="text-xs text-muted-foreground mt-1">{lab.notes}</p>}
-              </div>
-            ))}
+        <div className="grid grid-cols-2 gap-3 border-b border-border/50 pb-4 sm:grid-cols-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Notes</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{notes.length}</p>
           </div>
-        </section>
-      )}
-
-      {/* Activity Timeline */}
-      <section>
-        <h3 className="text-sm font-semibold px-1 mb-2">Activity Log ({logEntries.length})</h3>
-        <div className="space-y-1">
-          {logEntries.slice(0, 50).map((entry, i) => (
-            <div key={i} className="flex items-start gap-2 py-1.5 text-xs border-b last:border-0">
-              <span className="text-muted-foreground shrink-0 w-10">
-                {formatInTimeZone(new Date(entry.time), "Asia/Kolkata", "HH:mm")}
-              </span>
-              <span>{entry.icon}</span>
-              <span className="flex-1">{entry.description}</span>
-              {entry.by && <span className="text-muted-foreground shrink-0">{entry.by}</span>}
-            </div>
-          ))}
-          {logEntries.length === 0 && <p className="text-xs text-muted-foreground px-1">No activity recorded</p>}
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Labs</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{labs.length}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Proofs</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{proofAttachments.length}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Timeline</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{totalItems}</p>
+          </div>
         </div>
       </section>
+
+      {sections.length === 0 ? (
+        <p className="px-1 py-10 text-sm text-muted-foreground">No history recorded yet</p>
+      ) : (
+        <div className="space-y-7">
+          {sections.map((section) => (
+            <section key={section.key} className="space-y-3">
+              <div className="flex items-center gap-3 border-b border-border/60 pb-2">
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
+                    DAY_BADGE_STYLES[section.label] ?? "bg-muted text-foreground"
+                  )}
+                >
+                  {section.label}
+                </span>
+                <span className="text-xs text-muted-foreground">{section.dateLabel}</span>
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {section.items.length} {section.items.length === 1 ? "entry" : "entries"}
+                </span>
+              </div>
+
+              <div className="space-y-0">
+                {section.items.map((item) => (
+                  <article
+                    key={item.key}
+                    className="grid grid-cols-[3.25rem_1fr] gap-3 border-b border-border/40 py-3 last:border-b-0"
+                  >
+                    <div className="pt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                      {item.timeLabel}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-base leading-none">{item.icon}</span>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                                TONE_STYLES[item.tone]
+                              )}
+                            >
+                              {item.kindLabel}
+                            </span>
+                            <p className="min-w-0 text-sm font-medium text-foreground">
+                              {item.title}
+                            </p>
+                          </div>
+
+                          {item.description && (
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                              {item.description}
+                            </p>
+                          )}
+
+                          {item.meta && (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              {item.meta}
+                            </p>
+                          )}
+
+                          {item.media?.isSkipped && (
+                            <div className="mt-2 flex w-full max-w-[15rem] items-center justify-center rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-5 text-center text-xs font-medium text-amber-800">
+                              Photo skipped
+                            </div>
+                          )}
+
+                          {item.media && !item.media.isSkipped && (
+                            <div className="mt-2 w-full max-w-[15rem] overflow-hidden rounded-xl border border-border/60 bg-muted/40">
+                              {isVideo(item.media.fileName) ? (
+                                <div className="relative aspect-[4/3]">
+                                  <video
+                                    src={driveMediaUrl(item.media.fileId)}
+                                    className="h-full w-full object-cover"
+                                    muted
+                                    preload="metadata"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/15">
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55">
+                                      <Play className="h-4 w-4 fill-white text-white" />
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={driveMediaUrl(item.media.fileId)}
+                                  alt={`${item.media.categoryLabel} proof`}
+                                  className="aspect-[4/3] h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

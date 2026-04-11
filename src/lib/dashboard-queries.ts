@@ -39,6 +39,8 @@ export interface DashboardSecondaryData {
       locationGpsCoordinates: string | null;
       ambulancePersonName: string | null;
       handlingNote: string;
+      registrationMode: string;
+      registrationModeOther: string | null;
       rescuerInfo: string | null;
     };
     admittedBy: { name: string };
@@ -222,6 +224,8 @@ export async function getDashboardSecondaryData(): Promise<DashboardSecondaryDat
             locationGpsCoordinates: true,
             ambulancePersonName: true,
             handlingNote: true,
+            registrationMode: true,
+            registrationModeOther: true,
             rescuerInfo: true,
           },
         },

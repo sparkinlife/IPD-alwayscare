@@ -46,6 +46,8 @@ export async function getPatientPageShell(admissionId: string) {
           locationGpsCoordinates: true,
           ambulancePersonName: true,
           handlingNote: true,
+          registrationMode: true,
+          registrationModeOther: true,
           rescuerInfo: true,
           deletedAt: true,
         },

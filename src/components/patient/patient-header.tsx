@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   CONDITION_CONFIG,
   HANDLING_NOTE_LABELS,
+  REGISTRATION_MODE_LABELS,
   SPAY_NEUTER_STATUS_LABELS,
   WARD_CONFIG,
 } from "@/lib/constants";
@@ -63,6 +64,8 @@ interface PatientHeaderProps {
       locationGpsCoordinates: string | null;
       ambulancePersonName: string | null;
       handlingNote: string;
+      registrationMode: string;
+      registrationModeOther: string | null;
       rescuerInfo: string | null;
     };
   };
@@ -85,13 +88,15 @@ function EditPatientSheet({
   const [sex, setSex] = useState(patient.sex);
   const [isStray, setIsStray] = useState(patient.isStray);
   const [handlingNote, setHandlingNote] = useState(patient.handlingNote);
+  const [registrationMode, setRegistrationMode] = useState(patient.registrationMode);
 
   useEffect(() => {
     if (!open) return;
     setSex(patient.sex);
     setIsStray(patient.isStray);
     setHandlingNote(patient.handlingNote);
-  }, [open, patient.handlingNote, patient.isStray, patient.sex]);
+    setRegistrationMode(patient.registrationMode);
+  }, [open, patient.handlingNote, patient.isStray, patient.registrationMode, patient.sex]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -100,6 +105,11 @@ function EditPatientSheet({
     formData.set("sex", sex);
     formData.set("isStray", String(isStray));
     formData.set("handlingNote", handlingNote);
+    formData.set("registrationMode", registrationMode);
+    if (registrationMode === "OTHER") {
+      const otherInput = e.currentTarget.querySelector<HTMLInputElement>('[name="registrationModeOther"]');
+      if (otherInput?.value) formData.set("registrationModeOther", otherInput.value);
+    }
     try {
       const result = await updatePatient(patient.id, formData);
       if (result && "error" in result && result.error) {
@@ -124,6 +134,7 @@ function EditPatientSheet({
         <form onSubmit={handleSubmit} className="px-4 pb-6 space-y-4">
           <input type="hidden" name="isStray" value={String(isStray)} />
           <input type="hidden" name="handlingNote" value={handlingNote} />
+          <input type="hidden" name="registrationMode" value={registrationMode} />
           <div className="space-y-1.5">
             <Label htmlFor="ep-name">Name *</Label>
             <Input id="ep-name" name="name" defaultValue={patient.name} required className="h-12" />
@@ -206,6 +217,33 @@ function EditPatientSheet({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label>Mode of Registration</Label>
+            <Select
+              value={registrationMode}
+              onValueChange={(v) => setRegistrationMode(v ?? "AMBULANCE")}
+            >
+              <SelectTrigger className="w-full h-12">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WALK_IN">Walk-in</SelectItem>
+                <SelectItem value="AMBULANCE">Always Care Ambulance</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {registrationMode === "OTHER" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="ep-registrationModeOther">Specify Mode</Label>
+              <Input
+                id="ep-registrationModeOther"
+                name="registrationModeOther"
+                defaultValue={patient.registrationModeOther ?? ""}
+                className="h-12"
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-3">
             <div className="space-y-0.5">
               <Label className="text-sm font-medium">Stray animal</Label>
@@ -389,6 +427,12 @@ export function PatientHeader({ admission, isDoctor, profilePhotoFileId }: Patie
     ? SPAY_NEUTER_STATUS_LABELS[admission.spayNeuterStatus] ??
       admission.spayNeuterStatus
     : null;
+  const registrationModeLabel =
+    REGISTRATION_MODE_LABELS[patient.registrationMode] ?? patient.registrationMode;
+  const registrationModeDisplay =
+    patient.registrationMode === "OTHER" && patient.registrationModeOther
+      ? `${registrationModeLabel} (${patient.registrationModeOther})`
+      : registrationModeLabel;
 
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-3">
@@ -531,9 +575,11 @@ export function PatientHeader({ admission, isDoctor, profilePhotoFileId }: Patie
           )}
 
           {(spayNeuterLabel ||
+            patient.registrationMode ||
             patient.ambulancePersonName ||
             patient.rescueLocation) && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+              <span>Registration: {registrationModeDisplay}</span>
               {spayNeuterLabel && <span>Spay / neuter: {spayNeuterLabel}</span>}
               {patient.ambulancePersonName && (
                 <span>Ambulance: {patient.ambulancePersonName}</span>

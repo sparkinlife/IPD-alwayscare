@@ -35,6 +35,7 @@ test("patient shell queries include patient number, handling note, and viral ris
   assert.match(patientQueriesSource, /patientNumber:\s*true/);
   assert.match(patientQueriesSource, /handlingNote:\s*true/);
   assert.match(patientQueriesSource, /registrationMode:\s*true/);
+  assert.match(patientQueriesSource, /registrationModeOther:\s*true/);
   assert.match(patientQueriesSource, /viralRisk:\s*true/);
 });
 

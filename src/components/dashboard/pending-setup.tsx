@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ClipboardList, Pencil, Trash2 } from "lucide-react";
 import { formatRelative } from "@/lib/date-utils";
 import { cancelRegistration, editRegisteredPatient } from "@/actions/admissions";
-import { HANDLING_NOTE_LABELS } from "@/lib/constants";
+import { HANDLING_NOTE_LABELS, REGISTRATION_MODE_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +49,8 @@ interface RegisteredAdmission {
     locationGpsCoordinates: string | null;
     ambulancePersonName: string | null;
     handlingNote: string;
+    registrationMode: string;
+    registrationModeOther: string | null;
     rescuerInfo: string | null;
   };
   admittedBy: { name: string };
@@ -81,6 +83,9 @@ function EditRegisteredSheet({
   const [handlingNote, setHandlingNote] = React.useState(
     admission.patient.handlingNote
   );
+  const [registrationMode, setRegistrationMode] = React.useState(
+    admission.patient.registrationMode
+  );
 
   // Reset form state when sheet opens with fresh admission data
   React.useEffect(() => {
@@ -89,6 +94,7 @@ function EditRegisteredSheet({
       setSex(admission.patient.sex);
       setIsStray(admission.patient.isStray);
       setHandlingNote(admission.patient.handlingNote);
+      setRegistrationMode(admission.patient.registrationMode);
       setError(null);
     }
   }, [open, admission]);
@@ -103,6 +109,11 @@ function EditRegisteredSheet({
     formData.set("sex", sex);
     formData.set("isStray", String(isStray));
     formData.set("handlingNote", handlingNote);
+    formData.set("registrationMode", registrationMode);
+    if (registrationMode === "OTHER") {
+      const otherInput = e.currentTarget.querySelector<HTMLInputElement>('[name="registrationModeOther"]');
+      if (otherInput?.value) formData.set("registrationModeOther", otherInput.value);
+    }
 
     const result = await editRegisteredPatient(admission.id, formData);
     setLoading(false);
@@ -273,6 +284,35 @@ function EditRegisteredSheet({
             <input type="hidden" name="handlingNote" value={handlingNote} />
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Mode of Registration</Label>
+            <Select
+              value={registrationMode}
+              onValueChange={(v) => setRegistrationMode(v ?? "AMBULANCE")}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WALK_IN">Walk-in</SelectItem>
+                <SelectItem value="AMBULANCE">Always Care Ambulance</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="registrationMode" value={registrationMode} />
+          </div>
+
+          {registrationMode === "OTHER" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-registrationModeOther">Specify Mode</Label>
+              <Input
+                id="edit-registrationModeOther"
+                name="registrationModeOther"
+                defaultValue={admission.patient.registrationModeOther ?? ""}
+              />
+            </div>
+          )}
+
           {/* Is Stray */}
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
@@ -404,6 +444,11 @@ export function PendingSetup({ admissions, isDoctor }: PendingSetupProps) {
                 {admission.patient.patientNumber ?? "Number pending"}
                 {" · "}
                 {HANDLING_NOTE_LABELS[admission.patient.handlingNote] ?? "Standard"}
+                {" · "}
+                {REGISTRATION_MODE_LABELS[admission.patient.registrationMode] ?? admission.patient.registrationMode}
+                {admission.patient.registrationMode === "OTHER" && admission.patient.registrationModeOther
+                  ? ` (${admission.patient.registrationModeOther})`
+                  : ""}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {[

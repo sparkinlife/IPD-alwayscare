@@ -293,7 +293,7 @@ function EditRegisteredSheet({
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-[16rem]" align="start">
                 <SelectItem value="WALK_IN">Walk-in</SelectItem>
                 <SelectItem value="AMBULANCE">Always Care Ambulance</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>

@@ -226,7 +226,7 @@ function EditPatientSheet({
               <SelectTrigger className="w-full h-12">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-[16rem]" align="start">
                 <SelectItem value="WALK_IN">Walk-in</SelectItem>
                 <SelectItem value="AMBULANCE">Always Care Ambulance</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>

@@ -11,6 +11,11 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow cron API routes (authenticated via CRON_SECRET header, not session)
+  if (pathname.startsWith("/api/cron")) {
+    return NextResponse.next();
+  }
+
   // Allow static assets
   if (
     pathname.startsWith("/_next") ||
